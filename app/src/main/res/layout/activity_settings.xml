@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center_horizontal">
+
+        <!-- Header -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="无障碍磁贴管理器"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="4dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="配置磁贴 → 下拉通知栏添加 → 一键开关无障碍权限"
+            android:textSize="13sp"
+            android:textColor="#888888"
+            android:layout_marginBottom="12dp" />
+
+        <!-- Shizuku Status -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="8dp">
+
+            <TextView
+                android:id="@+id/tv_shizuku_status"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Shizuku 权限: 检查中..."
+                android:textSize="14sp" />
+
+            <Button
+                android:id="@+id/btn_request_shizuku"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:text="授予权限"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/btn_show_services"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:text="查看当前无障碍服务列表"
+            android:textSize="12sp"
+            android:layout_marginBottom="16dp" />
+
+        <!-- ===== Slot 0 ===== -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="━━━ 磁贴 1 ━━━"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="8dp" />
+        <EditText android:id="@+id/et_label_0" android:layout_width="match_parent" android:layout_height="44dp" android:hint="磁贴显示名称 (如: 全局复制)" android:textSize="14sp" android:inputType="text" android:singleLine="true" android:layout_marginBottom="6dp"/>
+        <EditText android:id="@+id/et_service_0" android:layout_width="match_parent" android:layout_height="44dp" android:hint="无障碍服务组件名 (包名/服务类名)" android:textSize="13sp" android:inputType="text" android:singleLine="true" android:layout_marginBottom="6dp"/>
+        <EditText android:id="@+id/et_app_0" android:layout_width="match_parent" android:layout_height="44dp" android:hint="App 包名 (可选，开启时自动启动)" android:textSize="13sp" android:inputType="text" android:singleLine="true" android:layout_marginBottom="6dp"/>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginBottom="8dp">
+            <CheckBox android:id="@+id/cb_launch_0" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="开启时启动App" android:textSize="13sp" android:checked="true"/>
+            <CheckBox android:id="@+id/cb_stop_0" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="关闭时停止App" android:textSize="13sp" android:checked="true"/>
+        </LinearLayout>
+        <Button android:id="@+id/btn_save_0" android:layout_width="match_parent" android:layout_height="42dp" android:text="保存配置" android:textSize="13sp" />
+
+        <!-- ===== Slot 1 ===== -->
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="━━━ 磁贴 2 ━━━" android:textSize="14sp" android:textStyle="bold" android:gravity="center" android:layout_marginTop="16dp" android:layout_marginBottom="8dp"/>
+        <EditText android:id="@+id/et_label_1" android:layout_width="match_parent" android:layout_height="44dp" android:hint="磁贴显示名称" android:textSize="14sp" android:inputType="text" android:singleLine="true" android:layout_marginBottom="6dp"/>
+        <EditText android:id="@+id/et_service_1" android:layout_width="match_parent" android:layout_height="44dp" android:hint="无障碍服务组件名 (包名/服务类名)" android:textSize="13sp" android:inputType="text" android:singleLine="true" android:layout_marginBottom="6dp"/>
+        <EditText android:id="@+id/et_app_1" android:layout_width="match_parent" android:layout_height="44dp" android:hint="App 包名 (可选)" android:textSize="13sp" android:inputType="text" android:singleLine="true" android:layout_marginBottom="6dp"/>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginBottom="8dp">
+            <CheckBox android:id="@+id/cb_launch_1" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="开启时启动App" android:textSize="13sp" android:checked="true"/>
+            <CheckBox android:id="@+id/cb_stop_1" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="关闭时停止App" android:textSize="13sp" android:checked="true"/>
+        </LinearLayout>
+        <Button android:id="@+id/btn_save_1" android:layout_width="match_parent" android:layout_height="42dp" android:text="保存配置" android:textSize="13sp" />
+
+        <!-- ===== Slot 2 ===== -->
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="━━━ 磁贴 3 ━━━" android:textSize="14sp" android:textStyle="bold" android:gravity="center" android:layout_marginTop="16dp" android:layout_marginBottom="8dp"/>
+        <EditText android:id="@+id/et_label_2" android:layout_width="match_parent" android:layout_height="44dp" android:hint="磁贴显示名称" android:textSize="14sp" android:inputType="text" android:singleLine="true" android:layout_marginBottom="6dp"/>
+        <EditText android:id="@+id/et_service_2" android:layout_width="match_parent" android:layout_height="44dp" android:hint="无障碍服务组件名 (包名/服务类名)" android:textSize="13sp" android:inputType="text" android:singleLine="true" android:layout_marginBottom="6dp"/>
+        <EditText android:id="@+id/et_app_2" android:layout_width="match_parent" android:layout_height="44dp" android:hint="App 包名 (可选)" android:textSize="13sp" android:inputType="text" android:singleLine="true" android:layout_marginBottom="6dp"/>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginBottom="8dp">
+            <CheckBox android:id="@+id/cb_launch_2" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="开启时启动App" android:textSize="13sp" android:checked="true"/>
+            <CheckBox android:id="@+id/cb_stop_2" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="关闭时停止App" android:textSize="13sp" android:checked="true"/>
+        </LinearLayout>
+        <Button android:id="@+id/btn_save_2" android:layout_width="match_parent" android:layout_height="42dp" android:text="保存配置" android:textSize="13sp" />
+
+        <!-- Help -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:textSize="12sp"
+            android:textColor="#999999"
+            android:text="使用说明:\n1. 先安装并启动 Shizuku\n2. 点击「授予权限」授予 WRITE_SECURE_SETTINGS 权限\n3. 填写无障碍服务组件名（格式: 包名/服务类名）\n4. 可选填 App 包名，开启时自动启动\n5. 保存后，下拉通知栏 → 编辑快捷开关 → 添加「无障碍 N」\n6. 点击磁贴即可一键开启/关闭无障碍权限" />
+
+    </LinearLayout>
+</ScrollView>

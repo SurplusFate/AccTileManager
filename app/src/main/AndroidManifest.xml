@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.example.acctileman">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FORCE_STOP_PACKAGES"
+        android:maxSdkVersion="28" />
+
+    <application
+        android:allowBackup="false"
+        android:label="@string/app_name"
+        android:icon="@mipmap/ic_launcher"
+        android:supportsRtl="true"
+        android:theme="@style/AppTheme">
+
+        <!-- Shizuku Provider -->
+        <provider
+            android:name="rikka.shizuku.ShizukuProvider"
+            android:authorities="com.example.acctileman.shizuku"
+            android:exported="true"
+            android:multiprocess="false" />
+        <meta-data
+            android:name="moe.shizuku.client.V3_SUPPORT"
+            android:value="true" />
+
+        <!-- Settings Activity -->
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- QS Tile Service (Slot 1) -->
+        <service
+            android:name=".tile.TileService0"
+            android:exported="true"
+            android:icon="@drawable/ic_tile_copy"
+            android:label="无障碍 1"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.quicksettings.TOGGLEABLE"
+                android:value="true" />
+        </service>
+
+        <!-- QS Tile Service (Slot 2) -->
+        <service
+            android:name=".tile.TileService1"
+            android:exported="true"
+            android:icon="@drawable/ic_tile_copy"
+            android:label="无障碍 2"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.quicksettings.TOGGLEABLE"
+                android:value="true" />
+        </service>
+
+        <!-- QS Tile Service (Slot 3) -->
+        <service
+            android:name=".tile.TileService2"
+            android:exported="true"
+            android:icon="@drawable/ic_tile_copy"
+            android:label="无障碍 3"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.quicksettings.TOGGLEABLE"
+                android:value="true" />
+        </service>
+
+    </application>
+</manifest>

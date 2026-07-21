@@ -1,0 +1,168 @@
+package com.example.acctileman;
+
+import android.app.Activity;
+import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.os.Bundle;
+import android.widget.Button;
+import android.widget.CheckBox;
+import android.widget.EditText;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import rikka.shizuku.Shizuku;
+
+/**
+ * Settings activity for configuring tile slots.
+ * Each slot maps to: accessibility service, optional app package, label, and behavior flags.
+ */
+public class SettingsActivity extends Activity {
+
+    private static final String PREFS = "acc_tile_prefs";
+    private static final int MAX_SLOTS = 3;
+    private static final int REQUEST_CODE_SHIZUKU = 100;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_settings);
+
+        // Shizuku permission listener
+        Shizuku.addRequestPermissionResultListener(this::onShizukuPermissionResult);
+
+        // Initialize slot editors
+        SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+        for (int i = 0; i < MAX_SLOTS; i++) {
+            initSlotEditor(i, prefs);
+        }
+
+        // Save buttons
+        Button saveBtn0 = findViewById(R.id.btn_save_0);
+        Button saveBtn1 = findViewById(R.id.btn_save_1);
+        Button saveBtn2 = findViewById(R.id.btn_save_2);
+        if (saveBtn0 != null) saveBtn0.setOnClickListener(v -> saveSlot(0));
+        if (saveBtn1 != null) saveBtn1.setOnClickListener(v -> saveSlot(1));
+        if (saveBtn2 != null) saveBtn2.setOnClickListener(v -> saveSlot(2));
+
+        // Status
+        updateShizukuStatus();
+
+        // Current services button
+        Button btnShowServices = findViewById(R.id.btn_show_services);
+        if (btnShowServices != null) {
+            btnShowServices.setOnClickListener(v -> showCurrentServices());
+        }
+
+        // Request Shizuku permission button
+        Button btnRequestShizuku = findViewById(R.id.btn_request_shizuku);
+        if (btnRequestShizuku != null) {
+            btnRequestShizuku.setOnClickListener(v -> requestShizukuPermission());
+        }
+    }
+
+    private void initSlotEditor(int slot, SharedPreferences prefs) {
+        String prefix = "slot_" + slot + "_";
+
+        EditText etApp = findViewById(getResId("et_app_" + slot));
+        EditText etService = findViewById(getResId("et_service_" + slot));
+        EditText etLabel = findViewById(getResId("et_label_" + slot));
+        CheckBox cbLaunch = findViewById(getResId("cb_launch_" + slot));
+        CheckBox cbStop = findViewById(getResId("cb_stop_" + slot));
+
+        if (etApp != null) etApp.setText(prefs.getString(prefix + "app", ""));
+        if (etService != null) etService.setText(prefs.getString(prefix + "service", ""));
+        if (etLabel != null) etLabel.setText(prefs.getString(prefix + "label", ""));
+        if (cbLaunch != null) cbLaunch.setChecked(prefs.getBoolean(prefix + "launch", true));
+        if (cbStop != null) cbStop.setChecked(prefs.getBoolean(prefix + "stop", true));
+    }
+
+    private int getResId(String name) {
+        return getResources().getIdentifier(name, "id", getPackageName());
+    }
+
+    private void saveSlot(int slot) {
+        SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+        SharedPreferences.Editor editor = prefs.edit();
+        String prefix = "slot_" + slot + "_";
+
+        EditText etApp = findViewById(getResId("et_app_" + slot));
+        EditText etService = findViewById(getResId("et_service_" + slot));
+        EditText etLabel = findViewById(getResId("et_label_" + slot));
+        CheckBox cbLaunch = findViewById(getResId("cb_launch_" + slot));
+        CheckBox cbStop = findViewById(getResId("cb_stop_" + slot));
+
+        String app = etApp != null ? etApp.getText().toString().trim() : "";
+        String service = etService != null ? etService.getText().toString().trim() : "";
+        String label = etLabel != null ? etLabel.getText().toString().trim() : "";
+        boolean launch = cbLaunch != null && cbLaunch.isChecked();
+        boolean stop = cbStop != null && cbStop.isChecked();
+
+        editor.putString(prefix + "app", app);
+        editor.putString(prefix + "service", service);
+        editor.putString(prefix + "label", label.isEmpty() ? "无障碍 " + (slot + 1) : label);
+        editor.putBoolean(prefix + "launch", launch);
+        editor.putBoolean(prefix + "stop", stop);
+        editor.apply();
+
+        Toast.makeText(this, "磁贴 " + (slot + 1) + " 已保存", Toast.LENGTH_SHORT).show();
+    }
+
+    private void showCurrentServices() {
+        try {
+            java.lang.Process process = Shizuku.newProcess(
+                    new String[]{"settings", "get", "secure", "enabled_accessibility_services"},
+                    null, null
+            );
+            java.io.BufferedReader reader = new java.io.BufferedReader(
+                    new java.io.InputStreamReader(process.getInputStream()));
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) sb.append(line);
+            process.waitFor();
+
+            String result = sb.toString().trim();
+            if (result.isEmpty()) {
+                result = "(无已启用的无障碍服务)";
+            }
+            Toast.makeText(this, result, Toast.LENGTH_LONG).show();
+        } catch (Exception e) {
+            Toast.makeText(this, "需要先授予 Shizuku 权限", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void requestShizukuPermission() {
+        if (Shizuku.checkSelfPermission(Shizuku.Permission.WRITE_SECURE_SETTINGS)
+                == PackageManager.PERMISSION_GRANTED) {
+            Toast.makeText(this, "Shizuku 权限已授予", Toast.LENGTH_SHORT).show();
+        } else {
+            Shizuku.requestPermission(REQUEST_CODE_SHIZUKU);
+        }
+    }
+
+    private void updateShizukuStatus() {
+        TextView tvStatus = findViewById(R.id.tv_shizuku_status);
+        if (tvStatus != null) {
+            boolean granted = Shizuku.checkSelfPermission(Shizuku.Permission.WRITE_SECURE_SETTINGS)
+                    == android.content.pm.PackageManager.PERMISSION_GRANTED;
+            tvStatus.setText(granted ? "Shizuku 权限: 已授予" : "Shizuku 权限: 未授予");
+            tvStatus.setTextColor(granted ? 0xFF4CAF50 : 0xFFF44336);
+        }
+    }
+
+    private void onShizukuPermissionResult(int requestCode, int grantResult) {
+        if (requestCode == REQUEST_CODE_SHIZUKU) {
+            runOnUiThread(this::updateShizukuStatus);
+            if (grantResult == PackageManager.PERMISSION_GRANTED) {
+                Toast.makeText(this, "Shizuku 权限已授予", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(this, "Shizuku 权限被拒绝", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        Shizuku.removeRequestPermissionResultListener(this::onShizukuPermissionResult);
+    }
+}
