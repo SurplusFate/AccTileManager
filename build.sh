@@ -107,13 +107,16 @@ fi
 # ---- 下载 Shizuku API ----
 echo -e "${YELLOW}[4/8] 下载 Shizuku API...${NC}"
 if [ ! -f "$BUILD_DIR/libs/shizuku-api.jar" ]; then
+    # 从 Maven Central (Sonatype) 下载
     curl -L -o "$BUILD_DIR/libs/shizuku-api.jar" \
-        "https://jitpack.io/com.github.RikkaApps/Shizuku-API/13.1.5/Shizuku-API-13.1.5.jar" 2>&1 | tail -1
+        "https://repo1.maven.org/maven2/dev/rikka/shizuku/api/13.1.5/api-13.1.5.jar" 2>&1 | tail -1
 fi
 if [ -s "$BUILD_DIR/libs/shizuku-api.jar" ]; then
     echo -e "  ${GREEN}Shizuku API 下载成功$(ls -lh "$BUILD_DIR/libs/shizuku-api.jar" | awk '{print " ("$5")"}')${NC}"
 else
     echo -e "${RED}Shizuku API 下载失败${NC}"
+    echo "  请检查网络连接，或手动下载:"
+    echo "  https://repo1.maven.org/maven2/dev/rikka/shizuku/api/13.1.5/api-13.1.5.jar"
     exit 1
 fi
 
