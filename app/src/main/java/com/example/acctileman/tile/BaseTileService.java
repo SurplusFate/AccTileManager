@@ -160,9 +160,8 @@ public abstract class BaseTileService extends TileService {
     private static class Shizoku {
         static boolean checkSelfPermission() {
             try {
-                return Shizuku.checkSelfPermission(
-                        Shizuku.Permission.WRITE_SECURE_SETTINGS
-                ) == android.content.pm.PackageManager.PERMISSION_GRANTED;
+                return Shizuku.checkSelfPermission()
+                        == android.content.pm.PackageManager.PERMISSION_GRANTED;
             } catch (Exception e) {
                 return false;
             }

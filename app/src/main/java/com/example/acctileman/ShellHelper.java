@@ -6,23 +6,54 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.lang.reflect.Method;
 
 import rikka.shizuku.Shizuku;
 
 /**
  * Helper class to execute shell commands via Shizuku.
+ * Uses reflection to call Shizuku.newProcess() which is private in the API.
  * All operations run with shell-level (adb) permissions.
  */
 public class ShellHelper {
 
     private static final String TAG = "AccTileMan";
 
+    private static Method newProcessMethod = null;
+
+    static {
+        try {
+            newProcessMethod = Shizuku.class.getDeclaredMethod(
+                    "newProcess", String[].class, String[].class, String.class);
+            newProcessMethod.setAccessible(true);
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to get Shizuku.newProcess method", e);
+        }
+    }
+
+    /**
+     * Execute a command via Shizuku and return the Process object.
+     */
+    private static Process shizukuExec(String[] cmd) {
+        if (newProcessMethod == null) {
+            Log.e(TAG, "Shizuku.newProcess not available");
+            return null;
+        }
+        try {
+            return (Process) newProcessMethod.invoke(null, cmd, null, null);
+        } catch (Exception e) {
+            Log.e(TAG, "shizukuExec failed: " + String.join(" ", cmd), e);
+            return null;
+        }
+    }
+
     /**
      * Run a shell command via Shizuku and return stdout.
      */
     public static String run(String... cmd) {
         try {
-            Process process = Shizuku.newProcess(cmd, null, null);
+            Process process = shizukuExec(cmd);
+            if (process == null) return "";
             String stdout = readStream(process.getInputStream());
             String stderr = readStream(process.getErrorStream());
             int exitCode = process.waitFor();
@@ -41,8 +72,8 @@ public class ShellHelper {
      */
     public static void exec(String... cmd) {
         try {
-            Process process = Shizuku.newProcess(cmd, null, null);
-            process.waitFor();
+            Process process = shizukuExec(cmd);
+            if (process != null) process.waitFor();
         } catch (Exception e) {
             Log.e(TAG, "exec failed: " + String.join(" ", cmd), e);
         }
@@ -81,7 +112,6 @@ public class ShellHelper {
             Log.d(TAG, "service not enabled: " + serviceComponent);
             return true;
         }
-        // Remove the target service, keep others
         String newList = current
                 .replaceAll("(?<!\\S)" + java.util.regex.Pattern.quote(serviceComponent) + "(?!\\S)", "")
                 .replaceAll("::+", ":")
@@ -95,7 +125,7 @@ public class ShellHelper {
     }
 
     /**
-     * Launch an app by package name (launches the main launcher activity).
+     * Launch an app by package name.
      */
     public static void launchApp(String packageName) {
         run("monkey", "-p", packageName, "-c", "android.intent.category.LAUNCHER", "1");

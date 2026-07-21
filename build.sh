@@ -3,7 +3,7 @@
 # 无障碍磁贴管理器 - Termux ARM 构建脚本
 # ============================================
 # 使用方法:
-#   pkg install openjdk-17 git unzip curl wget -y
+#   pkg install openjdk-17 git unzip curl zip -y
 #   pkg install aapt2 -y
 #   bash build.sh
 # ============================================
@@ -20,7 +20,7 @@ cd "$SCRIPT_DIR"
 
 BUILD_DIR="$SCRIPT_DIR/build"
 rm -rf "$BUILD_DIR"
-mkdir -p "$BUILD_DIR"/{gen,classes,libs,dex}
+mkdir -p "$BUILD_DIR"/{gen,classes,libs,dex,tmp}
 
 echo -e "${GREEN}=== 无障碍磁贴管理器 - Termux 构建 ===${NC}"
 echo ""
@@ -30,11 +30,10 @@ echo -e "${YELLOW}[1/8] 检查依赖...${NC}"
 for cmd in java javac aapt2 jarsigner keytool zip curl unzip; do
     if ! command -v $cmd &> /dev/null; then
         echo -e "${RED}缺少 $cmd，请先安装依赖${NC}"
-        echo "  pkg install openjdk-17 aapt2 unzip curl -y"
+        echo "  pkg install openjdk-17 aapt2 zip unzip curl -y"
         exit 1
     fi
 done
-# zipalign 不在 Termux 包管理器中，会在步骤2中随 build-tools 一起获取
 ZIPALIGN=""
 if command -v zipalign &> /dev/null; then
     ZIPALIGN="zipalign"
@@ -43,27 +42,23 @@ echo -e "  ${GREEN}Java $(java -version 2>&1 | head -1)${NC}"
 echo -e "  ${GREEN}aapt2 $(aapt2 version 2>&1 | head -1)${NC}"
 echo ""
 
-# ---- 下载 d8 (纯 Java, ARM 兼容) ----
-echo -e "${YELLOW}[2/8] 下载 d8 工具...${NC}"
+# ---- 下载 build-tools (含 d8 和 zipalign) ----
+echo -e "${YELLOW}[2/8] 下载 build-tools...${NC}"
 if [ ! -f "$BUILD_DIR/libs/d8.jar" ]; then
-    # d8 在 build-tools 中，是纯 Java jar
     curl -L -o "$BUILD_DIR/build-tools.zip" \
         "https://dl.google.com/android/repository/build-tools_r34-linux.zip" 2>&1 | tail -1
     if [ -f "$BUILD_DIR/build-tools.zip" ] && [ -s "$BUILD_DIR/build-tools.zip" ]; then
-        unzip -qo "$BUILD_DIR/build-tools.zip" -d "$BUILD_DIR/bt/" 2>&1
-        # d8.jar 在 build-tools 里
-        D8_JAR=$(find "$BUILD_DIR/bt" -name "d8.jar" 2>/dev/null | head -1)
+        unzip -qo "$BUILD_DIR/build-tools.zip" -d "$BUILD_DIR/tmp/" 2>&1
+        D8_JAR=$(find "$BUILD_DIR/tmp" -name "d8.jar" 2>/dev/null | head -1)
         if [ -n "$D8_JAR" ]; then
             cp "$D8_JAR" "$BUILD_DIR/libs/d8.jar"
             echo -e "  ${GREEN}d8 下载成功${NC}"
         else
-            echo -e "  ${YELLOW}d8.jar 未在压缩包中找到，尝试备用方案...${NC}"
-            curl -L -o "$BUILD_DIR/libs/d8.jar" \
-                "https://raw.githubusercontent.com/nicholasgasior/gmern/master/files/d8.jar" 2>/dev/null
+            echo -e "${RED}d8.jar 未找到${NC}"
+            exit 1
         fi
-        # 同时提取 zipalign (如果系统没有的话)
         if [ -z "$ZIPALIGN" ]; then
-            ZA_BIN=$(find "$BUILD_DIR/bt" -name "zipalign" 2>/dev/null | head -1)
+            ZA_BIN=$(find "$BUILD_DIR/tmp" -name "zipalign" 2>/dev/null | head -1)
             if [ -n "$ZA_BIN" ]; then
                 cp "$ZA_BIN" "$BUILD_DIR/libs/zipalign"
                 chmod +x "$BUILD_DIR/libs/zipalign"
@@ -71,16 +66,12 @@ if [ ! -f "$BUILD_DIR/libs/d8.jar" ]; then
                 echo -e "  ${GREEN}zipalign 提取成功${NC}"
             fi
         fi
+        # 同时提取 android.jar (platforms/android-34/android.jar 可能不在 build-tools 中)
+        # build-tools 不含 android.jar，需要单独下载
     else
         echo -e "${RED}build-tools 下载失败${NC}"
         exit 1
     fi
-fi
-
-if [ ! -s "$BUILD_DIR/libs/d8.jar" ]; then
-    echo -e "${RED}无法获取 d8.jar，构建终止${NC}"
-    echo "请检查网络连接后重试"
-    exit 1
 fi
 
 d8() {
@@ -90,16 +81,35 @@ d8() {
 # ---- 下载 android.jar ----
 echo -e "${YELLOW}[3/8] 下载 android.jar...${NC}"
 if [ ! -f "$BUILD_DIR/libs/android.jar" ]; then
-    # 从 Android SDK 下载 platform
-    curl -L -o "$BUILD_DIR/platform.zip" \
-        "https://dl.google.com/android/repository/platform-34_r03.zip" 2>&1 | tail -1
-    if [ -f "$BUILD_DIR/platform.zip" ] && [ -s "$BUILD_DIR/platform.zip" ]; then
-        unzip -qo "$BUILD_DIR/platform.zip" -d "$BUILD_DIR/" 2>&1
-        cp "$BUILD_DIR/android-34/android.jar" "$BUILD_DIR/libs/android.jar"
-        rm -rf "$BUILD_DIR/android-34"
-        echo -e "  ${GREEN}android.jar 下载成功${NC}"
-    else
-        echo -e "${RED}android.jar 下载失败${NC}"
+    # 尝试多个已知可用的 platform 版本
+    ANDROID_JAR_DOWNLOADED=false
+    for url in \
+        "https://dl.google.com/android/repository/platform-35_r02.zip" \
+        "https://dl.google.com/android/repository/platform-36_r02.zip"; do
+        HTTP_CODE=$(curl -sIL "$url" 2>/dev/null | grep "^HTTP" | tail -1 | awk '{print $2}')
+        if [ "$HTTP_CODE" = "200" ]; then
+            echo "  尝试: $(basename $url .zip) -> $HTTP_CODE"
+            curl -L -o "$BUILD_DIR/platform.zip" "$url" 2>&1 | tail -1
+            if [ -f "$BUILD_DIR/platform.zip" ] && [ -s "$BUILD_DIR/platform.zip" ]; then
+                FILE_TYPE=$(file "$BUILD_DIR/platform.zip" | grep -o "Zip archive")
+                if [ -n "$FILE_TYPE" ]; then
+                    unzip -qo "$BUILD_DIR/platform.zip" -d "$BUILD_DIR/tmp/" 2>&1
+                    PLATFORM_JAR=$(find "$BUILD_DIR/tmp" -name "android.jar" 2>/dev/null | head -1)
+                    if [ -n "$PLATFORM_JAR" ]; then
+                        cp "$PLATFORM_JAR" "$BUILD_DIR/libs/android.jar"
+                        ANDROID_JAR_DOWNLOADED=true
+                        echo -e "  ${GREEN}android.jar 下载成功${NC}"
+                        break
+                    fi
+                fi
+            fi
+        else
+            echo "  跳过: $(basename $url .zip) -> $HTTP_CODE"
+        fi
+    done
+    if [ "$ANDROID_JAR_DOWNLOADED" = false ]; then
+        echo -e "${RED}android.jar 下载失败，所有版本都不可用${NC}"
+        echo "  请尝试手动获取 android.jar 放到 $BUILD_DIR/libs/ 目录"
         exit 1
     fi
 fi
@@ -107,17 +117,28 @@ fi
 # ---- 下载 Shizuku API ----
 echo -e "${YELLOW}[4/8] 下载 Shizuku API...${NC}"
 if [ ! -f "$BUILD_DIR/libs/shizuku-api.jar" ]; then
-    # 从 Maven Central (Sonatype) 下载
-    curl -L -o "$BUILD_DIR/libs/shizuku-api.jar" \
-        "https://repo1.maven.org/maven2/dev/rikka/shizuku/api/13.1.5/api-13.1.5.jar" 2>&1 | tail -1
-fi
-if [ -s "$BUILD_DIR/libs/shizuku-api.jar" ]; then
-    echo -e "  ${GREEN}Shizuku API 下载成功$(ls -lh "$BUILD_DIR/libs/shizuku-api.jar" | awk '{print " ("$5")"}')${NC}"
-else
-    echo -e "${RED}Shizuku API 下载失败${NC}"
-    echo "  请检查网络连接，或手动下载:"
-    echo "  https://repo1.maven.org/maven2/dev/rikka/shizuku/api/13.1.5/api-13.1.5.jar"
-    exit 1
+    # Shizuku API 在 Maven Central 上是 .aar 格式，需要提取 classes.jar
+    curl -L -o "$BUILD_DIR/tmp/shizuku-api.aar" \
+        "https://repo1.maven.org/maven2/dev/rikka/shizuku/api/13.1.5/api-13.1.5.aar" 2>&1 | tail -1
+    if [ -f "$BUILD_DIR/tmp/shizuku-api.aar" ] && [ -s "$BUILD_DIR/tmp/shizuku-api.aar" ]; then
+        FILE_TYPE=$(file "$BUILD_DIR/tmp/shizuku-api.aar" | grep -o "Zip archive")
+        if [ -n "$FILE_TYPE" ]; then
+            unzip -qo "$BUILD_DIR/tmp/shizuku-api.aar" -d "$BUILD_DIR/tmp/shizuku/" 2>&1
+            if [ -f "$BUILD_DIR/tmp/shizuku/classes.jar" ]; then
+                cp "$BUILD_DIR/tmp/shizuku/classes.jar" "$BUILD_DIR/libs/shizuku-api.jar"
+                echo -e "  ${GREEN}Shizuku API 下载成功$(ls -lh "$BUILD_DIR/libs/shizuku-api.jar" | awk '{print " ("$5")"}')${NC}"
+            else
+                echo -e "${RED}Shizuku aar 中未找到 classes.jar${NC}"
+                exit 1
+            fi
+        else
+            echo -e "${RED}Shizuku API 下载的不是有效的 zip 文件${NC}"
+            exit 1
+        fi
+    else
+        echo -e "${RED}Shizuku API 下载失败${NC}"
+        exit 1
+    fi
 fi
 
 # ---- 编译资源 ----
@@ -172,13 +193,11 @@ echo -e "  ${GREEN}DEX 生成完成${NC}"
 # ---- 打包签名 ----
 echo -e "${YELLOW}[8/8] 打包 & 签名...${NC}"
 
-# 创建未签名 APK
 cp "$BUILD_DIR/resources.apk" "$BUILD_DIR/app.unsigned.apk"
 cd "$BUILD_DIR"
 zip -j app.unsigned.apk dex/classes.dex
 cd "$SCRIPT_DIR"
 
-# 对齐
 if [ -n "$ZIPALIGN" ]; then
     $ZIPALIGN -f 4 "$BUILD_DIR/app.unsigned.apk" "$BUILD_DIR/app.aligned.apk"
 else
@@ -186,7 +205,6 @@ else
     cp "$BUILD_DIR/app.unsigned.apk" "$BUILD_DIR/app.aligned.apk"
 fi
 
-# 生成签名密钥
 if [ ! -f "$SCRIPT_DIR/debug.keystore" ]; then
     keytool -genkeypair -v \
         -keystore "$SCRIPT_DIR/debug.keystore" \
@@ -195,7 +213,6 @@ if [ ! -f "$SCRIPT_DIR/debug.keystore" ]; then
         -dname "CN=Debug,OU=Debug,O=Debug,L=Debug,S=Debug,C=US" 2>&1 | tail -1
 fi
 
-# 签名
 jarsigner -sigalg SHA256withRSA -digestalg SHA-256 \
     -keystore "$SCRIPT_DIR/debug.keystore" \
     -storepass android -keypass android \
@@ -221,6 +238,5 @@ echo "  cp $BUILD_DIR/AccTileManager.apk ~/storage/downloads/"
 echo "  然后用文件管理器安装"
 echo ""
 
-# 清理临时文件
 rm -f "$BUILD_DIR/build-tools.zip" "$BUILD_DIR/platform.zip" "$BUILD_DIR/app.unsigned.apk"
-rm -rf "$BUILD_DIR/bt" "$BUILD_DIR/dex"
+rm -rf "$BUILD_DIR/tmp" "$BUILD_DIR/bt" "$BUILD_DIR/dex"

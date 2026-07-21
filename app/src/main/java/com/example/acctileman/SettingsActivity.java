@@ -2,7 +2,6 @@ package com.example.acctileman;
 
 import android.app.Activity;
 import android.content.SharedPreferences;
-import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.widget.Button;
 import android.widget.CheckBox;
@@ -109,18 +108,7 @@ public class SettingsActivity extends Activity {
 
     private void showCurrentServices() {
         try {
-            java.lang.Process process = Shizuku.newProcess(
-                    new String[]{"settings", "get", "secure", "enabled_accessibility_services"},
-                    null, null
-            );
-            java.io.BufferedReader reader = new java.io.BufferedReader(
-                    new java.io.InputStreamReader(process.getInputStream()));
-            StringBuilder sb = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) sb.append(line);
-            process.waitFor();
-
-            String result = sb.toString().trim();
+            String result = com.example.acctileman.ShellHelper.getEnabledServices();
             if (result.isEmpty()) {
                 result = "(无已启用的无障碍服务)";
             }
@@ -131,8 +119,8 @@ public class SettingsActivity extends Activity {
     }
 
     private void requestShizukuPermission() {
-        if (Shizuku.checkSelfPermission(Shizuku.Permission.WRITE_SECURE_SETTINGS)
-                == PackageManager.PERMISSION_GRANTED) {
+        if (Shizuku.checkSelfPermission()
+                == android.content.pm.PackageManager.PERMISSION_GRANTED) {
             Toast.makeText(this, "Shizuku 权限已授予", Toast.LENGTH_SHORT).show();
         } else {
             Shizuku.requestPermission(REQUEST_CODE_SHIZUKU);
@@ -142,7 +130,7 @@ public class SettingsActivity extends Activity {
     private void updateShizukuStatus() {
         TextView tvStatus = findViewById(R.id.tv_shizuku_status);
         if (tvStatus != null) {
-            boolean granted = Shizuku.checkSelfPermission(Shizuku.Permission.WRITE_SECURE_SETTINGS)
+            boolean granted = Shizuku.checkSelfPermission()
                     == android.content.pm.PackageManager.PERMISSION_GRANTED;
             tvStatus.setText(granted ? "Shizuku 权限: 已授予" : "Shizuku 权限: 未授予");
             tvStatus.setTextColor(granted ? 0xFF4CAF50 : 0xFFF44336);
@@ -152,7 +140,7 @@ public class SettingsActivity extends Activity {
     private void onShizukuPermissionResult(int requestCode, int grantResult) {
         if (requestCode == REQUEST_CODE_SHIZUKU) {
             runOnUiThread(this::updateShizukuStatus);
-            if (grantResult == PackageManager.PERMISSION_GRANTED) {
+            if (grantResult == android.content.pm.PackageManager.PERMISSION_GRANTED) {
                 Toast.makeText(this, "Shizuku 权限已授予", Toast.LENGTH_SHORT).show();
             } else {
                 Toast.makeText(this, "Shizuku 权限被拒绝", Toast.LENGTH_SHORT).show();
