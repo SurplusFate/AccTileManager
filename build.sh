@@ -27,13 +27,18 @@ echo ""
 
 # ---- 检查依赖 ----
 echo -e "${YELLOW}[1/8] 检查依赖...${NC}"
-for cmd in java javac aapt2 zipalign jarsigner keytool zip; do
+for cmd in java javac aapt2 jarsigner keytool zip curl unzip; do
     if ! command -v $cmd &> /dev/null; then
         echo -e "${RED}缺少 $cmd，请先安装依赖${NC}"
-        echo "  pkg install openjdk-17 aapt2 -y"
+        echo "  pkg install openjdk-17 aapt2 unzip curl -y"
         exit 1
     fi
 done
+# zipalign 不在 Termux 包管理器中，会在步骤2中随 build-tools 一起获取
+ZIPALIGN=""
+if command -v zipalign &> /dev/null; then
+    ZIPALIGN="zipalign"
+fi
 echo -e "  ${GREEN}Java $(java -version 2>&1 | head -1)${NC}"
 echo -e "  ${GREEN}aapt2 $(aapt2 version 2>&1 | head -1)${NC}"
 echo ""
@@ -53,9 +58,18 @@ if [ ! -f "$BUILD_DIR/libs/d8.jar" ]; then
             echo -e "  ${GREEN}d8 下载成功${NC}"
         else
             echo -e "  ${YELLOW}d8.jar 未在压缩包中找到，尝试备用方案...${NC}"
-            # 备用: 直接下载 d8.jar
             curl -L -o "$BUILD_DIR/libs/d8.jar" \
                 "https://raw.githubusercontent.com/nicholasgasior/gmern/master/files/d8.jar" 2>/dev/null
+        fi
+        # 同时提取 zipalign (如果系统没有的话)
+        if [ -z "$ZIPALIGN" ]; then
+            ZA_BIN=$(find "$BUILD_DIR/bt" -name "zipalign" 2>/dev/null | head -1)
+            if [ -n "$ZA_BIN" ]; then
+                cp "$ZA_BIN" "$BUILD_DIR/libs/zipalign"
+                chmod +x "$BUILD_DIR/libs/zipalign"
+                ZIPALIGN="$BUILD_DIR/libs/zipalign"
+                echo -e "  ${GREEN}zipalign 提取成功${NC}"
+            fi
         fi
     else
         echo -e "${RED}build-tools 下载失败${NC}"
@@ -162,7 +176,12 @@ zip -j app.unsigned.apk dex/classes.dex
 cd "$SCRIPT_DIR"
 
 # 对齐
-zipalign -f 4 "$BUILD_DIR/app.unsigned.apk" "$BUILD_DIR/app.aligned.apk"
+if [ -n "$ZIPALIGN" ]; then
+    $ZIPALIGN -f 4 "$BUILD_DIR/app.unsigned.apk" "$BUILD_DIR/app.aligned.apk"
+else
+    echo -e "${YELLOW}  跳过 zipalign（未找到）${NC}"
+    cp "$BUILD_DIR/app.unsigned.apk" "$BUILD_DIR/app.aligned.apk"
+fi
 
 # 生成签名密钥
 if [ ! -f "$SCRIPT_DIR/debug.keystore" ]; then
