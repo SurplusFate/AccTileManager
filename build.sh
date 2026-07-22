@@ -149,6 +149,33 @@ if [ ! -f "$BUILD_DIR/libs/shizuku-api.jar" ]; then
     fi
 fi
 
+# ---- 下载 Shizuku Provider ----
+echo -e "${YELLOW}[4b/8] 下载 Shizuku Provider...${NC}"
+if [ ! -f "$BUILD_DIR/libs/shizuku-provider.jar" ]; then
+    curl -L -o "$BUILD_DIR/tmp/shizuku-provider.aar" \
+        "https://repo1.maven.org/maven2/dev/rikka/shizuku/provider/13.1.5/provider-13.1.5.aar" 2>&1 | tail -1
+    if [ -f "$BUILD_DIR/tmp/shizuku-provider.aar" ] && [ -s "$BUILD_DIR/tmp/shizuku-provider.aar" ]; then
+        unzip -tq "$BUILD_DIR/tmp/shizuku-provider.aar" > /dev/null 2>&1
+        if [ $? -eq 0 ]; then
+            mkdir -p "$BUILD_DIR/tmp/shizuku-provider/"
+            unzip -qo "$BUILD_DIR/tmp/shizuku-provider.aar" -d "$BUILD_DIR/tmp/shizuku-provider/" 2>&1
+            if [ -f "$BUILD_DIR/tmp/shizuku-provider/classes.jar" ]; then
+                cp "$BUILD_DIR/tmp/shizuku-provider/classes.jar" "$BUILD_DIR/libs/shizuku-provider.jar"
+                echo -e "  ${GREEN}Shizuku Provider 下载成功$(ls -lh "$BUILD_DIR/libs/shizuku-provider.jar" | awk '{print " ("$5")"}')${NC}"
+            else
+                echo -e "${RED}Shizuku Provider aar 中未找到 classes.jar${NC}"
+                exit 1
+            fi
+        else
+            echo -e "${RED}Shizuku Provider 下载的不是有效的 zip 文件${NC}"
+            exit 1
+        fi
+    else
+        echo -e "${RED}Shizuku Provider 下载失败${NC}"
+        exit 1
+    fi
+fi
+
 # ---- 编译资源 ----
 echo -e "${YELLOW}[5/8] 编译资源...${NC}"
 aapt2 compile --dir app/src/main/res -o "$BUILD_DIR/resources.zip" 2>&1
@@ -170,7 +197,7 @@ echo -e "${YELLOW}[6/8] 编译 Java...${NC}"
 find app/src/main/java -name "*.java" > "$BUILD_DIR/sources.txt"
 find "$BUILD_DIR/gen" -name "*.java" >> "$BUILD_DIR/sources.txt"
 
-CLASSPATH="$BUILD_DIR/libs/android.jar:$BUILD_DIR/libs/shizuku-api.jar"
+CLASSPATH="$BUILD_DIR/libs/android.jar:$BUILD_DIR/libs/shizuku-api.jar:$BUILD_DIR/libs/shizuku-provider.jar"
 
 javac \
     -source 11 -target 11 \
