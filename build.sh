@@ -62,8 +62,14 @@ if [ ! -f "$BUILD_DIR/libs/d8.jar" ]; then
             if [ -n "$ZA_BIN" ]; then
                 cp "$ZA_BIN" "$BUILD_DIR/libs/zipalign"
                 chmod +x "$BUILD_DIR/libs/zipalign"
-                ZIPALIGN="$BUILD_DIR/libs/zipalign"
-                echo -e "  ${GREEN}zipalign 提取成功${NC}"
+                # 验证是否能执行（ARM 设备上 x86 的 zipalign 无法运行）
+                if "$BUILD_DIR/libs/zipalign" -h > /dev/null 2>&1; then
+                    ZIPALIGN="$BUILD_DIR/libs/zipalign"
+                    echo -e "  ${GREEN}zipalign 就绪${NC}"
+                else
+                    echo -e "  ${YELLOW}zipalign 不可用（架构不兼容），跳过对齐步骤${NC}"
+                    rm -f "$BUILD_DIR/libs/zipalign"
+                fi
             fi
         fi
         # 同时提取 android.jar (platforms/android-34/android.jar 可能不在 build-tools 中)
