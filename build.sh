@@ -91,8 +91,9 @@ if [ ! -f "$BUILD_DIR/libs/android.jar" ]; then
             echo "  尝试: $(basename $url .zip) -> $HTTP_CODE"
             curl -L -o "$BUILD_DIR/platform.zip" "$url" 2>&1 | tail -1
             if [ -f "$BUILD_DIR/platform.zip" ] && [ -s "$BUILD_DIR/platform.zip" ]; then
-                FILE_TYPE=$(file "$BUILD_DIR/platform.zip" | grep -o "Zip archive")
-                if [ -n "$FILE_TYPE" ]; then
+                # 验证 zip 文件并尝试解压
+                unzip -tq "$BUILD_DIR/platform.zip" > /dev/null 2>&1
+                if [ $? -eq 0 ]; then
                     unzip -qo "$BUILD_DIR/platform.zip" -d "$BUILD_DIR/tmp/" 2>&1
                     PLATFORM_JAR=$(find "$BUILD_DIR/tmp" -name "android.jar" 2>/dev/null | head -1)
                     if [ -n "$PLATFORM_JAR" ]; then
@@ -121,8 +122,9 @@ if [ ! -f "$BUILD_DIR/libs/shizuku-api.jar" ]; then
     curl -L -o "$BUILD_DIR/tmp/shizuku-api.aar" \
         "https://repo1.maven.org/maven2/dev/rikka/shizuku/api/13.1.5/api-13.1.5.aar" 2>&1 | tail -1
     if [ -f "$BUILD_DIR/tmp/shizuku-api.aar" ] && [ -s "$BUILD_DIR/tmp/shizuku-api.aar" ]; then
-        FILE_TYPE=$(file "$BUILD_DIR/tmp/shizuku-api.aar" | grep -o "Zip archive")
-        if [ -n "$FILE_TYPE" ]; then
+        # 验证 aar 文件（zip 格式）
+        unzip -tq "$BUILD_DIR/tmp/shizuku-api.aar" > /dev/null 2>&1
+        if [ $? -eq 0 ]; then
             unzip -qo "$BUILD_DIR/tmp/shizuku-api.aar" -d "$BUILD_DIR/tmp/shizuku/" 2>&1
             if [ -f "$BUILD_DIR/tmp/shizuku/classes.jar" ]; then
                 cp "$BUILD_DIR/tmp/shizuku/classes.jar" "$BUILD_DIR/libs/shizuku-api.jar"
