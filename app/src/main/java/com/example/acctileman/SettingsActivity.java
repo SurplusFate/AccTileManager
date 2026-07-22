@@ -9,11 +9,15 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+
 import rikka.shizuku.Shizuku;
 
 /**
  * Settings activity for configuring tile slots.
- * Each slot maps to: accessibility service, optional app package, label, and behavior flags.
  */
 public class SettingsActivity extends Activity {
 
@@ -21,41 +25,90 @@ public class SettingsActivity extends Activity {
     private static final int MAX_SLOTS = 3;
     private static final int REQUEST_CODE_SHIZUKU = 100;
 
+    // Permission listener (avoid lambda for d8 desugaring compatibility)
+    private final Shizuku.OnRequestPermissionResultListener permissionListener =
+            new Shizuku.OnRequestPermissionResultListener() {
+                @Override
+                public void onResult(int requestCode, int grantResult) {
+                    onShizukuPermissionResult(requestCode, grantResult);
+                }
+            };
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_settings);
+        try {
+            super.onCreate(savedInstanceState);
+            setContentView(R.layout.activity_settings);
 
-        // Shizuku permission listener
-        Shizuku.addRequestPermissionResultListener(this::onShizukuPermissionResult);
+            // Shizuku permission listener
+            try {
+                Shizuku.addRequestPermissionResultListener(permissionListener);
+            } catch (Exception e) {
+                // Shizuku not running yet, that's ok
+                logError("addPermissionListener", e);
+            }
 
-        // Initialize slot editors
-        SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
-        for (int i = 0; i < MAX_SLOTS; i++) {
-            initSlotEditor(i, prefs);
+            // Initialize slot editors
+            SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+            for (int i = 0; i < MAX_SLOTS; i++) {
+                initSlotEditor(i, prefs);
+            }
+
+            // Save buttons
+            Button saveBtn0 = findViewById(R.id.btn_save_0);
+            Button saveBtn1 = findViewById(R.id.btn_save_1);
+            Button saveBtn2 = findViewById(R.id.btn_save_2);
+            if (saveBtn0 != null) saveBtn0.setOnClickListener(new ViewClickListener(0));
+            if (saveBtn1 != null) saveBtn1.setOnClickListener(new ViewClickListener(1));
+            if (saveBtn2 != null) saveBtn2.setOnClickListener(new ViewClickListener(2));
+
+            // Status
+            try {
+                updateShizukuStatus();
+            } catch (Exception e) {
+                logError("updateStatus", e);
+            }
+
+            // Current services button
+            Button btnShowServices = findViewById(R.id.btn_show_services);
+            if (btnShowServices != null) {
+                btnShowServices.setOnClickListener(new android.view.View.OnClickListener() {
+                    @Override
+                    public void onClick(android.view.View v) {
+                        showCurrentServices();
+                    }
+                });
+            }
+
+            // Request Shizuku permission button
+            Button btnRequestShizuku = findViewById(R.id.btn_request_shizuku);
+            if (btnRequestShizuku != null) {
+                btnRequestShizuku.setOnClickListener(new android.view.View.OnClickListener() {
+                    @Override
+                    public void onClick(android.view.View v) {
+                        requestShizukuPermission();
+                    }
+                });
+            }
+        } catch (Throwable t) {
+            logError("onCreate", t);
+            throw t;
+        }
+    }
+
+    private static class ViewClickListener implements android.view.View.OnClickListener {
+        private final int slot;
+
+        ViewClickListener(int slot) {
+            this.slot = slot;
         }
 
-        // Save buttons
-        Button saveBtn0 = findViewById(R.id.btn_save_0);
-        Button saveBtn1 = findViewById(R.id.btn_save_1);
-        Button saveBtn2 = findViewById(R.id.btn_save_2);
-        if (saveBtn0 != null) saveBtn0.setOnClickListener(v -> saveSlot(0));
-        if (saveBtn1 != null) saveBtn1.setOnClickListener(v -> saveSlot(1));
-        if (saveBtn2 != null) saveBtn2.setOnClickListener(v -> saveSlot(2));
-
-        // Status
-        updateShizukuStatus();
-
-        // Current services button
-        Button btnShowServices = findViewById(R.id.btn_show_services);
-        if (btnShowServices != null) {
-            btnShowServices.setOnClickListener(v -> showCurrentServices());
-        }
-
-        // Request Shizuku permission button
-        Button btnRequestShizuku = findViewById(R.id.btn_request_shizuku);
-        if (btnRequestShizuku != null) {
-            btnRequestShizuku.setOnClickListener(v -> requestShizukuPermission());
+        @Override
+        public void onClick(android.view.View v) {
+            // We need Activity reference; use v.getContext() cast
+            if (v.getContext() instanceof SettingsActivity) {
+                ((SettingsActivity) v.getContext()).saveSlot(slot);
+            }
         }
     }
 
@@ -119,38 +172,75 @@ public class SettingsActivity extends Activity {
     }
 
     private void requestShizukuPermission() {
-        if (Shizuku.checkSelfPermission()
-                == android.content.pm.PackageManager.PERMISSION_GRANTED) {
-            Toast.makeText(this, "Shizuku 权限已授予", Toast.LENGTH_SHORT).show();
-        } else {
-            Shizuku.requestPermission(REQUEST_CODE_SHIZUKU);
+        try {
+            if (Shizuku.checkSelfPermission()
+                    == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                Toast.makeText(this, "Shizuku 权限已授予", Toast.LENGTH_SHORT).show();
+            } else {
+                Shizuku.requestPermission(REQUEST_CODE_SHIZUKU);
+            }
+        } catch (Exception e) {
+            Toast.makeText(this, "请确保 Shizuku 已安装并运行", Toast.LENGTH_SHORT).show();
         }
     }
 
     private void updateShizukuStatus() {
         TextView tvStatus = findViewById(R.id.tv_shizuku_status);
         if (tvStatus != null) {
-            boolean granted = Shizuku.checkSelfPermission()
-                    == android.content.pm.PackageManager.PERMISSION_GRANTED;
-            tvStatus.setText(granted ? "Shizuku 权限: 已授予" : "Shizuku 权限: 未授予");
-            tvStatus.setTextColor(granted ? 0xFF4CAF50 : 0xFFF44336);
+            try {
+                boolean granted = Shizuku.checkSelfPermission()
+                        == android.content.pm.PackageManager.PERMISSION_GRANTED;
+                tvStatus.setText(granted ? "Shizuku 权限: 已授予" : "Shizuku 权限: 未授予");
+                tvStatus.setTextColor(granted ? 0xFF4CAF50 : 0xFFF44336);
+            } catch (Exception e) {
+                tvStatus.setText("Shizuku 权限: 未连接");
+                tvStatus.setTextColor(0xFFFF9800);
+            }
         }
     }
 
     private void onShizukuPermissionResult(int requestCode, int grantResult) {
         if (requestCode == REQUEST_CODE_SHIZUKU) {
-            runOnUiThread(this::updateShizukuStatus);
-            if (grantResult == android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                Toast.makeText(this, "Shizuku 权限已授予", Toast.LENGTH_SHORT).show();
-            } else {
-                Toast.makeText(this, "Shizuku 权限被拒绝", Toast.LENGTH_SHORT).show();
-            }
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    updateShizukuStatus();
+                    if (grantResult == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                        Toast.makeText(SettingsActivity.this, "Shizuku 权限已授予", Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(SettingsActivity.this, "Shizuku 权限被拒绝", Toast.LENGTH_SHORT).show();
+                    }
+                }
+            });
         }
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        Shizuku.removeRequestPermissionResultListener(this::onShizukuPermissionResult);
+        try {
+            Shizuku.removeRequestPermissionResultListener(permissionListener);
+        } catch (Exception ignored) {}
+    }
+
+    /**
+     * Write crash/error info to /sdcard/Download/acctileman_error.log
+     */
+    private void logError(String tag, Throwable t) {
+        try {
+            StringWriter sw = new StringWriter();
+            PrintWriter pw = new PrintWriter(sw);
+            pw.println("[" + tag + "] " + android.text.format.DateFormat.format(
+                    "yyyy-MM-dd HH:mm:ss", new java.util.Date()));
+            t.printStackTrace(pw);
+            pw.close();
+
+            String dir = android.os.Environment.getExternalStoragePublicDirectory(
+                    android.os.Environment.DIRECTORY_DOWNLOADS).getAbsolutePath();
+            File logFile = new File(dir, "acctileman_error.log");
+            FileWriter fw = new FileWriter(logFile, true);
+            fw.write(sw.toString() + "\n");
+            fw.close();
+        } catch (Exception ignored) {}
     }
 }
