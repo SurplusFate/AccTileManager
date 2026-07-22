@@ -190,6 +190,7 @@ ALL_CLASS_FILES=$(find "$BUILD_DIR/classes" -name "*.class")
 
 d8 --output "$BUILD_DIR/dex" \
     --lib "$BUILD_DIR/libs/android.jar" \
+    --classpath "$BUILD_DIR/libs/shizuku-api.jar" \
     $ALL_CLASS_FILES 2>&1
 
 if [ $? -ne 0 ] || [ ! -f "$BUILD_DIR/dex/classes.dex" ]; then
