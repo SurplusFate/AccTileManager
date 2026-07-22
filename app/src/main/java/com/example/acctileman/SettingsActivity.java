@@ -58,9 +58,22 @@ public class SettingsActivity extends Activity {
             Button saveBtn0 = findViewById(R.id.btn_save_0);
             Button saveBtn1 = findViewById(R.id.btn_save_1);
             Button saveBtn2 = findViewById(R.id.btn_save_2);
-            if (saveBtn0 != null) saveBtn0.setOnClickListener(new ViewClickListener(0));
-            if (saveBtn1 != null) saveBtn1.setOnClickListener(new ViewClickListener(1));
-            if (saveBtn2 != null) saveBtn2.setOnClickListener(new ViewClickListener(2));
+            final SettingsActivity self = this;
+            if (saveBtn0 != null) {
+                saveBtn0.setOnClickListener(new android.view.View.OnClickListener() {
+                    @Override public void onClick(android.view.View v) { self.saveSlot(0); }
+                });
+            }
+            if (saveBtn1 != null) {
+                saveBtn1.setOnClickListener(new android.view.View.OnClickListener() {
+                    @Override public void onClick(android.view.View v) { self.saveSlot(1); }
+                });
+            }
+            if (saveBtn2 != null) {
+                saveBtn2.setOnClickListener(new android.view.View.OnClickListener() {
+                    @Override public void onClick(android.view.View v) { self.saveSlot(2); }
+                });
+            }
 
             // Status
             try {
@@ -93,22 +106,6 @@ public class SettingsActivity extends Activity {
         } catch (Throwable t) {
             logError("onCreate", t);
             throw t;
-        }
-    }
-
-    private static class ViewClickListener implements android.view.View.OnClickListener {
-        private final int slot;
-
-        ViewClickListener(int slot) {
-            this.slot = slot;
-        }
-
-        @Override
-        public void onClick(android.view.View v) {
-            // We need Activity reference; use v.getContext() cast
-            if (v.getContext() instanceof SettingsActivity) {
-                ((SettingsActivity) v.getContext()).saveSlot(slot);
-            }
         }
     }
 
