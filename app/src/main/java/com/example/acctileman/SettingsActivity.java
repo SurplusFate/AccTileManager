@@ -29,7 +29,7 @@ public class SettingsActivity extends Activity {
     private final Shizuku.OnRequestPermissionResultListener permissionListener =
             new Shizuku.OnRequestPermissionResultListener() {
                 @Override
-                public void onResult(int requestCode, int grantResult) {
+                public void onRequestPermissionResult(int requestCode, int grantResult) {
                     onShizukuPermissionResult(requestCode, grantResult);
                 }
             };
