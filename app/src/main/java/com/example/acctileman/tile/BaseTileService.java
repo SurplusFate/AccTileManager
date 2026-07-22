@@ -11,8 +11,7 @@ import android.util.Log;
 
 import com.example.acctileman.R;
 import com.example.acctileman.ShellHelper;
-
-import rikka.shizuku.Shizuku;
+import com.example.acctileman.ShizukuHelper;
 
 /**
  * Base TileService for accessibility toggle slots.
@@ -151,21 +150,8 @@ public abstract class BaseTileService extends TileService {
     // ---- Shizuku permission ----
 
     private void ensureShizukuPermission() {
-        if (Shizoku.checkSelfPermission()) return;
-        // Request permission - this will show a dialog to user
-        Shizuku.requestPermission(0);
-    }
-
-    // Shizuku permission helper
-    private static class Shizoku {
-        static boolean checkSelfPermission() {
-            try {
-                return Shizuku.checkSelfPermission()
-                        == android.content.pm.PackageManager.PERMISSION_GRANTED;
-            } catch (Exception e) {
-                return false;
-            }
-        }
+        if (ShizukuHelper.checkSelfPermission()) return;
+        ShizukuHelper.requestPermission(0);
     }
 
     // ---- Slot config data class ----

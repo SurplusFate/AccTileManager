@@ -16,12 +16,37 @@ public class SettingsActivity extends Activity {
 
     private static final String PREFS = "acc_tile_prefs";
     private static final int MAX_SLOTS = 3;
+    private static final int REQUEST_CODE_SHIZUKU = 100;
+
+    private Object permissionListener;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_settings);
-        Toast.makeText(this, "App started", Toast.LENGTH_SHORT).show();
+
+        // Shizuku permission listener (via reflection proxy)
+        if (ShizukuHelper.isAvailable()) {
+            permissionListener = ShizukuHelper.createListener(new ShizukuHelper.PermissionCallback() {
+                @Override
+                public void onResult(int requestCode, int grantResult) {
+                    if (requestCode == REQUEST_CODE_SHIZUKU) {
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                updateShizukuStatus();
+                                if (grantResult == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                                    Toast.makeText(SettingsActivity.this, "Shizuku 权限已授予", Toast.LENGTH_SHORT).show();
+                                } else {
+                                    Toast.makeText(SettingsActivity.this, "Shizuku 权限被拒绝", Toast.LENGTH_SHORT).show();
+                                }
+                            }
+                        });
+                    }
+                }
+            });
+            ShizukuHelper.addRequestPermissionResultListener(permissionListener);
+        }
 
         // Initialize slot editors
         SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
@@ -51,17 +76,14 @@ public class SettingsActivity extends Activity {
         }
 
         // Status
-        TextView tvStatus = findViewById(R.id.tv_shizuku_status);
-        if (tvStatus != null) {
-            tvStatus.setText("Shizuku: not checked");
-        }
+        updateShizukuStatus();
 
         // Current services button
         Button btnShowServices = findViewById(R.id.btn_show_services);
         if (btnShowServices != null) {
             btnShowServices.setOnClickListener(new android.view.View.OnClickListener() {
                 @Override public void onClick(android.view.View v) {
-                    Toast.makeText(SettingsActivity.this, "Shizuku required", Toast.LENGTH_SHORT).show();
+                    showCurrentServices();
                 }
             });
         }
@@ -71,7 +93,7 @@ public class SettingsActivity extends Activity {
         if (btnRequestShizuku != null) {
             btnRequestShizuku.setOnClickListener(new android.view.View.OnClickListener() {
                 @Override public void onClick(android.view.View v) {
-                    Toast.makeText(SettingsActivity.this, "Please install Shizuku", Toast.LENGTH_SHORT).show();
+                    requestShizukuPermission();
                 }
             });
         }
@@ -122,5 +144,53 @@ public class SettingsActivity extends Activity {
         editor.apply();
 
         Toast.makeText(this, "磁贴 " + (slot + 1) + " 已保存", Toast.LENGTH_SHORT).show();
+    }
+
+    private void showCurrentServices() {
+        try {
+            String result = ShellHelper.getEnabledServices();
+            if (result.isEmpty()) {
+                result = "(无已启用的无障碍服务)";
+            }
+            Toast.makeText(this, result, Toast.LENGTH_LONG).show();
+        } catch (Exception e) {
+            Toast.makeText(this, "需要先授予 Shizuku 权限", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void requestShizukuPermission() {
+        if (!ShizukuHelper.isAvailable()) {
+            Toast.makeText(this, "请确保 Shizuku 已安装并运行", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (ShizukuHelper.checkSelfPermission()) {
+            Toast.makeText(this, "Shizuku 权限已授予", Toast.LENGTH_SHORT).show();
+        } else {
+            ShizukuHelper.requestPermission(REQUEST_CODE_SHIZUKU);
+        }
+    }
+
+    private void updateShizukuStatus() {
+        TextView tvStatus = findViewById(R.id.tv_shizuku_status);
+        if (tvStatus != null) {
+            if (!ShizukuHelper.isAvailable()) {
+                tvStatus.setText("Shizuku: 未安装/未运行");
+                tvStatus.setTextColor(0xFFFF9800);
+            } else if (ShizukuHelper.checkSelfPermission()) {
+                tvStatus.setText("Shizuku 权限: 已授予");
+                tvStatus.setTextColor(0xFF4CAF50);
+            } else {
+                tvStatus.setText("Shizuku 权限: 未授予");
+                tvStatus.setTextColor(0xFFF44336);
+            }
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (permissionListener != null) {
+            ShizukuHelper.removeRequestPermissionResultListener(permissionListener);
+        }
     }
 }
