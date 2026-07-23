@@ -215,9 +215,13 @@ echo -e "  ${GREEN}Java 编译完成 ($(find "$BUILD_DIR/classes" -name '*.class
 echo -e "${YELLOW}[7/8] 生成 DEX...${NC}"
 ALL_CLASS_FILES=$(find "$BUILD_DIR/classes" -name "*.class")
 
+# 同时把 Shizuku API 和 Provider 的 class 打包进 DEX
+SHIZUKU_CLASSPATH="$BUILD_DIR/libs/shizuku-api.jar:$BUILD_DIR/libs/shizuku-provider.jar"
+
 d8 --output "$BUILD_DIR/dex" \
     --lib "$BUILD_DIR/libs/android.jar" \
-    --classpath "$BUILD_DIR/libs/shizuku-api.jar" \
+    --classpath "$SHIZUKU_CLASSPATH" \
+    --input "$SHIZUKU_CLASSPATH" \
     $ALL_CLASS_FILES 2>&1
 
 if [ $? -ne 0 ] || [ ! -f "$BUILD_DIR/dex/classes.dex" ]; then
