@@ -216,13 +216,14 @@ echo -e "${YELLOW}[7/8] 生成 DEX...${NC}"
 ALL_CLASS_FILES=$(find "$BUILD_DIR/classes" -name "*.class")
 
 # 同时把 Shizuku API 和 Provider 的 class 打包进 DEX
-SHIZUKU_CLASSPATH="$BUILD_DIR/libs/shizuku-api.jar:$BUILD_DIR/libs/shizuku-provider.jar"
+SHIZUKU_API="$BUILD_DIR/libs/shizuku-api.jar"
+SHIZUKU_PROVIDER="$BUILD_DIR/libs/shizuku-provider.jar"
 
 d8 --output "$BUILD_DIR/dex" \
     --lib "$BUILD_DIR/libs/android.jar" \
-    --classpath "$SHIZUKU_CLASSPATH" \
-    "$BUILD_DIR/libs/shizuku-api.jar" \
-    "$BUILD_DIR/libs/shizuku-provider.jar" \
+    --classpath "$SHIZUKU_API" --classpath "$SHIZUKU_PROVIDER" \
+    "$SHIZUKU_API" \
+    "$SHIZUKU_PROVIDER" \
     $ALL_CLASS_FILES 2>&1
 
 if [ $? -ne 0 ] || [ ! -f "$BUILD_DIR/dex/classes.dex" ]; then
