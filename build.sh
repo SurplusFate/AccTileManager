@@ -221,8 +221,8 @@ SHIZUKU_CLASSPATH="$BUILD_DIR/libs/shizuku-api.jar:$BUILD_DIR/libs/shizuku-provi
 d8 --output "$BUILD_DIR/dex" \
     --lib "$BUILD_DIR/libs/android.jar" \
     --classpath "$SHIZUKU_CLASSPATH" \
-    --input "$BUILD_DIR/libs/shizuku-api.jar" \
-    --input "$BUILD_DIR/libs/shizuku-provider.jar" \
+    "$BUILD_DIR/libs/shizuku-api.jar" \
+    "$BUILD_DIR/libs/shizuku-provider.jar" \
     $ALL_CLASS_FILES 2>&1
 
 if [ $? -ne 0 ] || [ ! -f "$BUILD_DIR/dex/classes.dex" ]; then
