@@ -1,9 +1,7 @@
 package com.example.acctileman;
 
 import android.app.Activity;
-import android.content.Intent;
 import android.content.SharedPreferences;
-import android.net.Uri;
 import android.os.Bundle;
 import android.widget.Button;
 import android.widget.CheckBox;
@@ -234,28 +232,33 @@ public class SettingsActivity extends Activity {
 
     private void exportLog() {
         Logger.d("Settings", "=== 导出日志 ===");
-        String logPath = Logger.getLogPath();
-        File logFile = new File(logPath);
-        if (!logFile.exists()) {
-            Logger.w("Settings", "日志文件不存在");
-            Toast.makeText(this, "日志文件不存在", Toast.LENGTH_SHORT).show();
+        File logFile = new File(Logger.getLogPath());
+        if (!logFile.exists() || logFile.length() == 0) {
+            Logger.w("Settings", "日志文件不存在或为空, path=" + Logger.getLogPath());
+            Toast.makeText(this, "日志为空，请先操作一下再导出\n路径: " + Logger.getLogPath(), Toast.LENGTH_LONG).show();
             return;
         }
-        long size = logFile.length();
-        Logger.d("Settings", "日志文件: " + logPath + " 大小: " + size + " bytes");
+        Logger.d("Settings", "日志文件: " + logFile.getAbsolutePath() + " 大小: " + logFile.length() + " bytes");
 
+        // 通过 Shizuku 复制到 /sdcard/Download/ 并提示
         try {
-            // Use content provider to share the file
-            Intent shareIntent = new Intent(Intent.ACTION_SEND);
-            shareIntent.setType("text/plain");
-            shareIntent.putExtra(Intent.EXTRA_STREAM,
-                    Uri.parse("file://" + logPath));
-            shareIntent.putExtra(Intent.EXTRA_SUBJECT, "AccTileManager 日志");
-            startActivity(Intent.createChooser(shareIntent, "导出日志"));
-            Logger.d("Settings", "日志导出 intent 已发送");
+            File downloadDir = android.os.Environment.getExternalStoragePublicDirectory(
+                    android.os.Environment.DIRECTORY_DOWNLOADS);
+            File exportFile = new File(downloadDir, "acctileman_log.txt");
+
+            java.io.InputStream in = new java.io.FileInputStream(logFile);
+            java.io.OutputStream out = new java.io.FileOutputStream(exportFile);
+            byte[] buf = new byte[1024];
+            int len;
+            while ((len = in.read(buf)) > 0) out.write(buf, 0, len);
+            in.close();
+            out.close();
+
+            Logger.d("Settings", "日志已导出到: " + exportFile.getAbsolutePath());
+            Toast.makeText(this, "日志已导出到:\n" + exportFile.getAbsolutePath(), Toast.LENGTH_LONG).show();
         } catch (Throwable t) {
-            Logger.e("Settings", "日志导出失败", t);
-            Toast.makeText(this, "导出失败: " + t.getMessage() + "\n日志路径: " + logPath, Toast.LENGTH_LONG).show();
+            Logger.e("Settings", "导出日志失败, 降级显示路径", t);
+            Toast.makeText(this, "日志路径:\n" + logFile.getAbsolutePath(), Toast.LENGTH_LONG).show();
         }
     }
 

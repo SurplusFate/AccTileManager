@@ -1,6 +1,6 @@
 package com.example.acctileman;
 
-import android.os.Environment;
+import android.content.Context;
 import android.util.Log;
 
 import java.io.File;
@@ -12,18 +12,33 @@ import java.util.Date;
 import java.util.Locale;
 
 /**
- * Centralized logger that writes to both Logcat and a file on sdcard.
- * Log file: /sdcard/Download/acctileman_log.txt
+ * Centralized logger that writes to both Logcat and app's external files directory.
+ * Uses app-specific external directory (no permissions needed on Android 10+).
+ * Path: /sdcard/Android/data/com.example.acctileman/files/acctileman_log.txt
+ * Also copies to /sdcard/Download/ when possible.
  */
 public class Logger {
 
     private static final String TAG = "AccTileMan";
     private static final String LOG_FILE_NAME = "acctileman_log.txt";
 
+    private static Context appContext;
+
+    public static void init(Context ctx) {
+        if (appContext == null && ctx != null) {
+            appContext = ctx.getApplicationContext();
+        }
+    }
+
     private static File getLogFile() {
-        return new File(
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-                LOG_FILE_NAME);
+        if (appContext != null) {
+            File dir = appContext.getExternalFilesDir(null);
+            if (dir != null) {
+                return new File(dir, LOG_FILE_NAME);
+            }
+        }
+        // Fallback: app internal storage (always writable)
+        return new File("/data/data/com.example.acctileman/files/" + LOG_FILE_NAME);
     }
 
     private static synchronized void writeLog(String level, String tag, String msg) {
@@ -39,11 +54,18 @@ public class Logger {
         }
 
         // File
+        File logFile = getLogFile();
         try {
-            FileWriter fw = new FileWriter(getLogFile(), true);
+            File dir = logFile.getParentFile();
+            if (dir != null && !dir.exists()) {
+                dir.mkdirs();
+            }
+            FileWriter fw = new FileWriter(logFile, true);
             fw.write(line);
             fw.close();
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            Log.e(TAG, "Logger: 写入日志失败 path=" + logFile.getAbsolutePath() + " err=" + e.getMessage());
+        }
     }
 
     public static void d(String tag, String msg) { writeLog("D", tag, msg); }
@@ -61,8 +83,9 @@ public class Logger {
 
     /** Clear the log file */
     public static synchronized void clear() {
+        File logFile = getLogFile();
         try {
-            new FileWriter(getLogFile(), false).close();
+            new FileWriter(logFile, false).close();
         } catch (Exception ignored) {}
     }
 

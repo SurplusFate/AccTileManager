@@ -1,7 +1,6 @@
 package com.example.acctileman;
 
 import android.app.Application;
-import android.os.Environment;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -12,15 +11,18 @@ import java.util.Date;
 import java.util.Locale;
 
 /**
- * Custom Application class that captures all uncaught exceptions
- * and writes them to /sdcard/Download/acctileman_crash.log
+ * Custom Application class.
+ * - Initializes Logger with app context
+ * - Captures all uncaught exceptions and writes to Logger + crash file
  */
 public class App extends Application {
 
     @Override
     public void onCreate() {
         super.onCreate();
+        Logger.init(this);
         Logger.d("App", "=== App onCreate ===");
+        Logger.d("App", "日志路径: " + Logger.getLogPath());
 
         Thread.UncaughtExceptionHandler defaultHandler = Thread.getDefaultUncaughtExceptionHandler();
         Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
@@ -36,7 +38,6 @@ public class App extends Application {
                     pw.println("Stacktrace:");
                     throwable.printStackTrace(pw);
 
-                    // Print all causes
                     Throwable cause = throwable.getCause();
                     while (cause != null) {
                         pw.println("\nCaused by: " + cause.getClass().getName() + ": " + cause.getMessage());
@@ -46,15 +47,20 @@ public class App extends Application {
                     pw.println("===== END =====\n");
                     pw.close();
 
-                    String dir = Environment.getExternalStoragePublicDirectory(
-                            Environment.DIRECTORY_DOWNLOADS).getAbsolutePath();
-                    File logFile = new File(dir, "acctileman_crash.log");
-                    FileWriter fw = new FileWriter(logFile, true);
-                    fw.write(sw.toString());
-                    fw.close();
+                    // 写入 Logger（会写到 app 外部目录）
+                    Logger.e("CRASH", sw.toString());
+
+                    // 同时尝试写到 /sdcard/Download/ 崩溃日志（可能失败没关系）
+                    try {
+                        File downloadsDir = getExternalFilesDir(null);
+                        if (downloadsDir != null) {
+                            FileWriter fw = new FileWriter(new File(downloadsDir, "acctileman_crash.log"), true);
+                            fw.write(sw.toString());
+                            fw.close();
+                        }
+                    } catch (Exception ignored) {}
                 } catch (Exception ignored) {}
 
-                // Let the default handler do its thing (show the crash dialog)
                 if (defaultHandler != null) {
                     defaultHandler.uncaughtException(thread, throwable);
                 }
