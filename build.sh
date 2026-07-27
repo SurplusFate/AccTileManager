@@ -26,7 +26,7 @@ echo -e "${GREEN}=== 无障碍磁贴管理器 - Termux 构建 ===${NC}"
 echo ""
 
 # ---- 检查依赖 ----
-echo -e "${YELLOW}[1/9] 检查依赖...${NC}"
+echo -e "${YELLOW}[1/7] 检查依赖...${NC}"
 for cmd in java javac aapt2 jarsigner keytool zip curl unzip; do
     if ! command -v $cmd &> /dev/null; then
         echo -e "${RED}缺少 $cmd，请先安装依赖${NC}"
@@ -43,7 +43,7 @@ echo -e "  ${GREEN}aapt2 $(aapt2 version 2>&1 | head -1)${NC}"
 echo ""
 
 # ---- 下载 build-tools (含 d8 和 zipalign) ----
-echo -e "${YELLOW}[2/9] 下载 build-tools...${NC}"
+echo -e "${YELLOW}[2/7] 下载 build-tools...${NC}"
 if [ ! -f "$BUILD_DIR/libs/d8.jar" ]; then
     curl -L -o "$BUILD_DIR/build-tools.zip" \
         "https://dl.google.com/android/repository/build-tools_r34-linux.zip" 2>&1 | tail -1
@@ -85,7 +85,7 @@ d8() {
 }
 
 # ---- 下载 android.jar ----
-echo -e "${YELLOW}[3/9] 下载 android.jar...${NC}"
+echo -e "${YELLOW}[3/7] 下载 android.jar...${NC}"
 if [ ! -f "$BUILD_DIR/libs/android.jar" ]; then
     # 尝试多个已知可用的 platform 版本
     ANDROID_JAR_DOWNLOADED=false
@@ -121,56 +121,12 @@ if [ ! -f "$BUILD_DIR/libs/android.jar" ]; then
     fi
 fi
 
-# ---- 下载 Shizuku API ----
-echo -e "${YELLOW}[4/9] 下载 Shizuku API...${NC}"
-if [ ! -f "$BUILD_DIR/libs/shizuku-api.jar" ]; then
-    # Shizuku API 在 Maven Central 上是 .aar 格式，需要提取 classes.jar
-    curl -L -o "$BUILD_DIR/tmp/shizuku-api.aar" \
-        "https://repo1.maven.org/maven2/dev/rikka/shizuku/api/13.1.5/api-13.1.5.aar" 2>&1 | tail -1
-    if [ -f "$BUILD_DIR/tmp/shizuku-api.aar" ] && [ -s "$BUILD_DIR/tmp/shizuku-api.aar" ]; then
-        # 验证 aar 文件（zip 格式）
-        unzip -tq "$BUILD_DIR/tmp/shizuku-api.aar" > /dev/null 2>&1
-        if [ $? -eq 0 ]; then
-            unzip -qo "$BUILD_DIR/tmp/shizuku-api.aar" -d "$BUILD_DIR/tmp/shizuku/" 2>&1
-            if [ -f "$BUILD_DIR/tmp/shizuku/classes.jar" ]; then
-                cp "$BUILD_DIR/tmp/shizuku/classes.jar" "$BUILD_DIR/libs/shizuku-api.jar"
-                echo -e "  ${GREEN}Shizuku API 下载成功$(ls -lh "$BUILD_DIR/libs/shizuku-api.jar" | awk '{print " ("$5")"}')${NC}"
-            else
-                echo -e "${RED}Shizuku aar 中未找到 classes.jar${NC}"
-                exit 1
-            fi
-        else
-            echo -e "${RED}Shizuku API 下载的不是有效的 zip 文件${NC}"
-            exit 1
-        fi
-    else
-        echo -e "${RED}Shizuku API 下载失败${NC}"
-        exit 1
-    fi
-fi
-
-# ---- 下载 Shizuku 服务端 classes.dex (提供 moe.shizuku.server.* 类) ----
-echo -e "${YELLOW}[5/9] 下载 Shizuku 服务端 DEX...${NC}"
-if [ ! -f "$BUILD_DIR/libs/shizuku-server.dex" ]; then
-    curl -L -o "$BUILD_DIR/tmp/shizuku-server.apk" \
-        "https://github.com/RikkaApps/Shizuku/releases/download/v13.6.0/shizuku-v13.6.0.r1086.2650830c-release.apk" 2>&1 | tail -1
-    if [ -f "$BUILD_DIR/tmp/shizuku-server.apk" ] && [ -s "$BUILD_DIR/tmp/shizuku-server.apk" ]; then
-        unzip -qo "$BUILD_DIR/tmp/shizuku-server.apk" classes.dex -d "$BUILD_DIR/tmp/" 2>&1
-        if [ -f "$BUILD_DIR/tmp/classes.dex" ]; then
-            cp "$BUILD_DIR/tmp/classes.dex" "$BUILD_DIR/libs/shizuku-server.dex"
-            echo -e "  ${GREEN}Shizuku 服务端 DEX 提取成功$(ls -lh "$BUILD_DIR/libs/shizuku-server.dex" | awk '{print " ("$5")"}')${NC}"
-        else
-            echo -e "${RED}Shizuku 服务端 classes.dex 未找到${NC}"
-            exit 1
-        fi
-    else
-        echo -e "${RED}Shizuku 服务端 APK 下载失败${NC}"
-        exit 1
-    fi
-fi
+# ---- (已移除 Shizuku API 和 classes2.dex，改用 rish 命令行) ----
+echo -e "${YELLOW}[4/7] 跳过 Shizuku API (改用 rish 命令行)...${NC}"
+echo -e "  ${GREEN}不再需要 Shizuku Java API${NC}"
 
 # ---- 编译资源 ----
-echo -e "${YELLOW}[6/9] 编译资源...${NC}"
+echo -e "${YELLOW}[5/7] 编译资源...${NC}"
 aapt2 compile --dir app/src/main/res -o "$BUILD_DIR/resources.zip" 2>&1
 if [ $? -ne 0 ]; then echo -e "${RED}资源编译失败${NC}"; exit 1; fi
 
@@ -186,11 +142,11 @@ if [ $? -ne 0 ]; then echo -e "${RED}资源链接失败${NC}"; exit 1; fi
 echo -e "  ${GREEN}资源编译完成${NC}"
 
 # ---- 编译 Java ----
-echo -e "${YELLOW}[7/9] 编译 Java...${NC}"
+echo -e "${YELLOW}[6/7] 编译 Java...${NC}"
 find app/src/main/java -name "*.java" > "$BUILD_DIR/sources.txt"
 find "$BUILD_DIR/gen" -name "*.java" >> "$BUILD_DIR/sources.txt"
 
-CLASSPATH="$BUILD_DIR/libs/android.jar:$BUILD_DIR/libs/shizuku-api.jar"
+CLASSPATH="$BUILD_DIR/libs/android.jar"
 
 javac \
     -source 11 -target 11 \
@@ -205,16 +161,11 @@ fi
 echo -e "  ${GREEN}Java 编译完成 ($(find "$BUILD_DIR/classes" -name '*.class' | wc -l) 个 class 文件)${NC}"
 
 # ---- 生成 DEX ----
-echo -e "${YELLOW}[8/9] 生成 DEX...${NC}"
+echo -e "${YELLOW}[7/8] 生成 DEX...${NC}"
 ALL_CLASS_FILES=$(find "$BUILD_DIR/classes" -name "*.class")
-
-# 同时把 Shizuku API 的 class 打包进 DEX
-SHIZUKU_API="$BUILD_DIR/libs/shizuku-api.jar"
 
 d8 --output "$BUILD_DIR/dex" \
     --lib "$BUILD_DIR/libs/android.jar" \
-    --classpath "$SHIZUKU_API" \
-    "$SHIZUKU_API" \
     $ALL_CLASS_FILES 2>&1
 
 if [ $? -ne 0 ] || [ ! -f "$BUILD_DIR/dex/classes.dex" ]; then
@@ -224,19 +175,12 @@ fi
 echo -e "  ${GREEN}DEX 生成完成${NC}"
 
 # ---- 打包签名 ----
-echo -e "${YELLOW}[9/9] 打包 & 签名...${NC}"
+echo -e "${YELLOW}[8/8] 打包 & 签名...${NC}"
 
 cp "$BUILD_DIR/resources.apk" "$BUILD_DIR/app.unsigned.apk"
 cd "$BUILD_DIR"
 # 添加我们的 classes.dex
 zip -j app.unsigned.apk dex/classes.dex
-# 添加 Shizuku 服务端 classes.dex 作为 classes2.dex
-# 提供 moe.shizuku.server.IShizukuApplication$Stub 等类
-if [ -f "$BUILD_DIR/libs/shizuku-server.dex" ]; then
-    cp "$BUILD_DIR/libs/shizuku-server.dex" "$BUILD_DIR/classes2.dex"
-    zip -j app.unsigned.apk classes2.dex
-    echo -e "  ${GREEN}Shizuku 服务端 DEX 已打包 (classes2.dex)${NC}"
-fi
 cd "$SCRIPT_DIR"
 
 if [ -n "$ZIPALIGN" ]; then
