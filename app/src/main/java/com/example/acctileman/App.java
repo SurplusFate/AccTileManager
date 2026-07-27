@@ -50,16 +50,21 @@ public class App extends Application {
                     // 写入 Logger（会写到 app 外部目录）
                     Logger.e("CRASH", sw.toString());
 
-                    // 同时尝试写到 /sdcard/Download/ 崩溃日志（可能失败没关系）
+                    // 同时尝试写到崩溃日志文件
                     try {
                         File downloadsDir = getExternalFilesDir(null);
                         if (downloadsDir != null) {
-                            FileWriter fw = new FileWriter(new File(downloadsDir, "acctileman_crash.log"), true);
-                            fw.write(sw.toString());
-                            fw.close();
+                            try (FileWriter fw = new FileWriter(
+                                    new File(downloadsDir, "acctileman_crash.log"), true)) {
+                                fw.write(sw.toString());
+                            }
                         }
-                    } catch (Exception ignored) {}
-                } catch (Exception ignored) {}
+                    } catch (Exception e) {
+                        android.util.Log.e("CRASH", "崩溃日志写入失败", e);
+                    }
+                } catch (Exception e) {
+                    android.util.Log.e("CRASH", "崩溃处理器异常", e);
+                }
 
                 if (defaultHandler != null) {
                     defaultHandler.uncaughtException(thread, throwable);

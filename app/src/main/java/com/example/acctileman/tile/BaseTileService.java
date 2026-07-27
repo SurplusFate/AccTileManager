@@ -2,8 +2,6 @@ package com.example.acctileman.tile;
 
 import android.content.SharedPreferences;
 import android.graphics.drawable.Icon;
-import android.os.Handler;
-import android.os.Looper;
 import android.service.quicksettings.Tile;
 import android.service.quicksettings.TileService;
 
@@ -22,8 +20,6 @@ public abstract class BaseTileService extends TileService {
 
     private static final String PREFS = "acc_tile_prefs";
     private static final String KEY_ENABLED = "_enabled";
-
-    private Handler uiHandler = new Handler(Looper.getMainLooper());
 
     public abstract int getSlotIndex();
 

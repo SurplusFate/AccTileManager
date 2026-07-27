@@ -55,15 +55,18 @@ public class ShizukuHelper {
     }
 
     /**
-     * Check if we have WRITE_SECURE_SETTINGS permission via rish.
+     * Check if we can read/write secure settings via rish.
+     * Uses 'settings get' instead of 'dumpsys package' because:
+     * - 'dumpsys package' requires android.permission.DUMP (system-only)
+     * - 'settings get secure' tests the actual permission we need
      */
     public static boolean checkSelfPermission() {
-        Logger.d("ShizukuHelper", "checkSelfPermission: 通过 rish 检查...");
-        String result = ShellHelper.run("dumpsys", "package", "com.example.acctileman");
-        // 检查是否有 WRITE_SECURE_SETTINGS
-        boolean granted = result.contains("WRITE_SECURE_SETTINGS")
-                && (result.contains("granted=true") || result.contains("INSTALL_GRANTED"));
-        Logger.d("ShizukuHelper", "checkSelfPermission: " + granted);
+        Logger.d("ShizukuHelper", "checkSelfPermission: 通过 settings 命令检查...");
+        String result = ShellHelper.run("settings", "get", "secure", "accessibility_enabled");
+        boolean granted = !result.contains("Permission") && !result.contains("denied")
+                && !result.contains("Error") && !result.contains("exception");
+        Logger.d("ShizukuHelper", "checkSelfPermission: " + granted + " (result="
+                + (result.length() > 100 ? result.substring(0, 100) + "..." : result) + ")");
         return granted;
     }
 

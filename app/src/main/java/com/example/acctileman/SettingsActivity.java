@@ -25,7 +25,6 @@ public class SettingsActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        Logger.clear(); // 每次打开设置页面时清空日志，方便排查
         Logger.d("Settings", "=== SettingsActivity onCreate ===");
         setContentView(R.layout.activity_settings);
 
@@ -240,26 +239,28 @@ public class SettingsActivity extends Activity {
         }
         Logger.d("Settings", "日志文件: " + logFile.getAbsolutePath() + " 大小: " + logFile.length() + " bytes");
 
-        // 通过 Shizuku 复制到 /sdcard/Download/ 并提示
+        // 通过 share intent 导出（避免分区存储 EACCES）
         try {
-            File downloadDir = android.os.Environment.getExternalStoragePublicDirectory(
-                    android.os.Environment.DIRECTORY_DOWNLOADS);
-            File exportFile = new File(downloadDir, "acctileman_log.txt");
-
-            java.io.InputStream in = new java.io.FileInputStream(logFile);
-            java.io.OutputStream out = new java.io.FileOutputStream(exportFile);
-            byte[] buf = new byte[1024];
-            int len;
-            while ((len = in.read(buf)) > 0) out.write(buf, 0, len);
-            in.close();
-            out.close();
-
-            Logger.d("Settings", "日志已导出到: " + exportFile.getAbsolutePath());
-            Toast.makeText(this, "日志已导出到:\n" + exportFile.getAbsolutePath(), Toast.LENGTH_LONG).show();
+            android.content.Intent shareIntent = new android.content.Intent(android.content.Intent.ACTION_SEND);
+            shareIntent.setType("text/plain");
+            shareIntent.putExtra(android.content.Intent.EXTRA_STREAM,
+                    androidx.core.content.FileProvider.getUriForFile(this,
+                            getPackageName() + ".fileprovider", logFile));
+            shareIntent.addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            startActivity(android.content.Intent.createChooser(shareIntent, "导出日志"));
+            Logger.d("Settings", "日志分享 intent 已启动");
         } catch (Throwable t) {
-            Logger.e("Settings", "导出日志失败, 降级显示路径", t);
-            Toast.makeText(this, "日志路径:\n" + logFile.getAbsolutePath(), Toast.LENGTH_LONG).show();
+            Logger.e("Settings", "分享失败，降级显示路径", t);
+            Toast.makeText(this, "日志路径:\n" + logFile.getAbsolutePath()
+                    + "\n(可通过文件管理器访问)", Toast.LENGTH_LONG).show();
         }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        Logger.d("Settings", "=== SettingsActivity onResume ===");
+        updateShizukuStatus();
     }
 
     @Override
