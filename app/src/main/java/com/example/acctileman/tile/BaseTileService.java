@@ -1,14 +1,13 @@
 package com.example.acctileman.tile;
 
 import android.content.SharedPreferences;
-import android.content.pm.PackageManager;
 import android.graphics.drawable.Icon;
 import android.os.Handler;
 import android.os.Looper;
 import android.service.quicksettings.Tile;
 import android.service.quicksettings.TileService;
-import android.util.Log;
 
+import com.example.acctileman.Logger;
 import com.example.acctileman.R;
 import com.example.acctileman.ShellHelper;
 import com.example.acctileman.ShizukuHelper;
@@ -21,33 +20,31 @@ import com.example.acctileman.ShizukuHelper;
  */
 public abstract class BaseTileService extends TileService {
 
-    private static final String TAG = "AccTile";
     private static final String PREFS = "acc_tile_prefs";
     private static final String KEY_ENABLED = "_enabled";
 
     private Handler uiHandler = new Handler(Looper.getMainLooper());
 
-    /**
-     * Subclasses must return their slot index (0, 1, 2, ...).
-     */
     public abstract int getSlotIndex();
 
     @Override
     public void onTileAdded() {
         super.onTileAdded();
-        Log.d(TAG, "Tile added for slot " + getSlotIndex());
+        Logger.d("Tile", "onTileAdded: slot=" + getSlotIndex());
         updateTileUI();
     }
 
     @Override
     public void onStartListening() {
         super.onStartListening();
+        Logger.d("Tile", "onStartListening: slot=" + getSlotIndex());
         updateTileUI();
     }
 
     @Override
     public void onClick() {
         super.onClick();
+        Logger.d("Tile", "onClick: slot=" + getSlotIndex());
         ensureShizukuPermission();
         boolean currentlyEnabled = getSlotState();
         if (currentlyEnabled) {
@@ -61,38 +58,33 @@ public abstract class BaseTileService extends TileService {
     private void enable() {
         SlotConfig config = getSlotConfig();
         if (config == null || config.isEmpty()) {
-            Log.w(TAG, "Slot " + getSlotIndex() + " not configured, launching settings");
-            // Open settings if not configured
+            Logger.w("Tile", "Slot " + getSlotIndex() + " 未配置，打开设置");
             startActivityAndCollapse(getPackageManager().getLaunchIntentForPackage(getPackageName()));
             return;
         }
 
-        // Enable accessibility service
+        Logger.d("Tile", "ENABLE slot=" + getSlotIndex() + " service=" + config.accessibilityService);
         ShellHelper.enableService(config.accessibilityService);
 
-        // Launch target app
         if (config.launchApp && config.appPackage != null && !config.appPackage.isEmpty()) {
             ShellHelper.launchApp(config.appPackage);
         }
 
         setSlotState(true);
-        Log.d(TAG, "Slot " + getSlotIndex() + " ENABLED: " + config.accessibilityService);
     }
 
     private void disable() {
         SlotConfig config = getSlotConfig();
         if (config == null || config.isEmpty()) return;
 
-        // Disable accessibility service
+        Logger.d("Tile", "DISABLE slot=" + getSlotIndex() + " service=" + config.accessibilityService);
         ShellHelper.disableService(config.accessibilityService);
 
-        // Force stop target app
         if (config.stopApp && config.appPackage != null && !config.appPackage.isEmpty()) {
             ShellHelper.forceStopApp(config.appPackage);
         }
 
         setSlotState(false);
-        Log.d(TAG, "Slot " + getSlotIndex() + " DISABLED");
     }
 
     private void updateTileUI() {
@@ -115,8 +107,6 @@ public abstract class BaseTileService extends TileService {
         tile.updateTile();
     }
 
-    // ---- SharedPreferences helpers ----
-
     private SharedPreferences getPrefs() {
         return getSharedPreferences(PREFS, MODE_PRIVATE);
     }
@@ -129,11 +119,6 @@ public abstract class BaseTileService extends TileService {
         getPrefs().edit().putBoolean(getSlotIndex() + KEY_ENABLED, enabled).apply();
     }
 
-    /**
-     * Read configuration for this slot.
-     * Format in prefs: "slot_{index}_app", "slot_{index}_service", "slot_{index}_label",
-     * "slot_{index}_launch", "slot_{index}_stop"
-     */
     SlotConfig getSlotConfig() {
         SharedPreferences prefs = getSharedPreferences("acc_tile_prefs", MODE_PRIVATE);
         String prefix = "slot_" + getSlotIndex() + "_";
@@ -147,14 +132,14 @@ public abstract class BaseTileService extends TileService {
         return new SlotConfig(app, service, label, launch, stop);
     }
 
-    // ---- Shizuku permission ----
-
     private void ensureShizukuPermission() {
-        if (ShizukuHelper.checkSelfPermission()) return;
+        if (ShizukuHelper.checkSelfPermission()) {
+            Logger.d("Tile", "Shizuku 权限已授予");
+            return;
+        }
+        Logger.d("Tile", "Shizuku 权限未授予，请求中...");
         ShizukuHelper.requestPermission(0);
     }
-
-    // ---- Slot config data class ----
 
     static class SlotConfig {
         String appPackage;

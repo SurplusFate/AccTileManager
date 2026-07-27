@@ -20,6 +20,7 @@ public class App extends Application {
     @Override
     public void onCreate() {
         super.onCreate();
+        Logger.d("App", "=== App onCreate ===");
 
         Thread.UncaughtExceptionHandler defaultHandler = Thread.getDefaultUncaughtExceptionHandler();
         Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
@@ -59,5 +60,6 @@ public class App extends Application {
                 }
             }
         });
+        Logger.d("App", "=== App onCreate 完成 ===");
     }
 }
