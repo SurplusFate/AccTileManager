@@ -5,6 +5,7 @@ import android.graphics.drawable.Icon;
 import android.service.quicksettings.Tile;
 import android.service.quicksettings.TileService;
 
+import com.example.acctileman.App;
 import com.example.acctileman.Logger;
 import com.example.acctileman.R;
 import com.example.acctileman.ShellHelper;
@@ -41,7 +42,19 @@ public abstract class BaseTileService extends TileService {
     public void onClick() {
         super.onClick();
         Logger.d("Tile", "onClick: slot=" + getSlotIndex());
-        ensureShizukuPermission();
+
+        if (!ShizukuHelper.checkSelfPermission()) {
+            Logger.w("Tile", "WRITE_SECURE_SETTINGS 权限未授予，忽略操作");
+            // 通过 statusBar 提示用户去设置页授权
+            try {
+                android.widget.Toast.makeText(
+                        App.getContext(),
+                        "无权限！请先打开 App 点击「授予权限」",
+                        android.widget.Toast.LENGTH_SHORT).show();
+            } catch (Throwable ignored) {}
+            return;
+        }
+
         boolean currentlyEnabled = getSlotState();
         if (currentlyEnabled) {
             disable();
@@ -126,15 +139,6 @@ public abstract class BaseTileService extends TileService {
 
         if (service.isEmpty()) return null;
         return new SlotConfig(app, service, label, launch, stop);
-    }
-
-    private void ensureShizukuPermission() {
-        if (ShizukuHelper.checkSelfPermission()) {
-            Logger.d("Tile", "Shizuku 权限已授予");
-            return;
-        }
-        Logger.d("Tile", "Shizuku 权限未授予，请求中...");
-        ShizukuHelper.requestPermission(0);
     }
 
     static class SlotConfig {

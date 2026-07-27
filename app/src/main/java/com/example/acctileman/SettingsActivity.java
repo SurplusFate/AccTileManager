@@ -18,45 +18,12 @@ public class SettingsActivity extends Activity {
 
     private static final String PREFS = "acc_tile_prefs";
     private static final int MAX_SLOTS = 3;
-    private static final int REQUEST_CODE_SHIZUKU = 100;
-
-    private Object permissionListener;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         Logger.d("Settings", "=== SettingsActivity onCreate ===");
         setContentView(R.layout.activity_settings);
-
-        // Shizuku permission listener (via reflection proxy)
-        Logger.d("Settings", "检查 Shizuku 可用性...");
-        if (ShizukuHelper.isAvailable()) {
-            Logger.d("Settings", "Shizuku 可用，创建权限监听器");
-            permissionListener = ShizukuHelper.createListener(new ShizukuHelper.PermissionCallback() {
-                @Override
-                public void onResult(int requestCode, int grantResult) {
-                    Logger.d("Settings", "onResult: requestCode=" + requestCode + " grantResult=" + grantResult);
-                    if (requestCode == REQUEST_CODE_SHIZUKU) {
-                        runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                updateShizukuStatus();
-                                if (grantResult == android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                                    Logger.d("Settings", "Shizuku 权限已授予");
-                                    Toast.makeText(SettingsActivity.this, "Shizuku 权限已授予", Toast.LENGTH_SHORT).show();
-                                } else {
-                                    Logger.w("Settings", "Shizuku 权限被拒绝");
-                                    Toast.makeText(SettingsActivity.this, "Shizuku 权限被拒绝", Toast.LENGTH_SHORT).show();
-                                }
-                            }
-                        });
-                    }
-                }
-            });
-            ShizukuHelper.addRequestPermissionResultListener(permissionListener);
-        } else {
-            Logger.w("Settings", "Shizuku 不可用");
-        }
 
         // Initialize slot editors
         SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
@@ -77,7 +44,7 @@ public class SettingsActivity extends Activity {
         }
 
         // Status
-        updateShizukuStatus();
+        updatePermissionStatus();
 
         // Current services button
         Button btnShowServices = findViewById(R.id.btn_show_services);
@@ -89,12 +56,12 @@ public class SettingsActivity extends Activity {
             });
         }
 
-        // Request Shizuku permission button
+        // Request permission button
         Button btnRequestShizuku = findViewById(R.id.btn_request_shizuku);
         if (btnRequestShizuku != null) {
             btnRequestShizuku.setOnClickListener(new android.view.View.OnClickListener() {
                 @Override public void onClick(android.view.View v) {
-                    requestShizukuPermission();
+                    requestPermission();
                 }
             });
         }
@@ -175,8 +142,8 @@ public class SettingsActivity extends Activity {
     private void showCurrentServices() {
         Logger.d("Settings", "showCurrentServices: 点击");
         if (!ShellHelper.isAvailable()) {
-            Logger.w("Settings", "showCurrentServices: ShellHelper 不可用");
-            Toast.makeText(this, "Shizuku 不可用，请确保已安装并运行", Toast.LENGTH_SHORT).show();
+            Logger.w("Settings", "showCurrentServices: 无权限");
+            Toast.makeText(this, "无 WRITE_SECURE_SETTINGS 权限，请先授权", Toast.LENGTH_SHORT).show();
             return;
         }
         try {
@@ -188,43 +155,35 @@ public class SettingsActivity extends Activity {
             Toast.makeText(this, result, Toast.LENGTH_LONG).show();
         } catch (Throwable t) {
             Logger.e("Settings", "showCurrentServices: 失败", t);
-            Toast.makeText(this, "Shizuku 调用失败: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "读取失败: " + t.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
 
-    private void requestShizukuPermission() {
-        Logger.d("Settings", "=== requestShizukuPermission: 用户点击了授权按钮 ===");
-        if (!ShizukuHelper.isAvailable()) {
-            Logger.w("Settings", "requestShizukuPermission: Shizuku 不可用");
-            Toast.makeText(this, "请确保 Shizuku 已安装并运行", Toast.LENGTH_SHORT).show();
+    private void requestPermission() {
+        Logger.d("Settings", "=== requestPermission: 用户点击了授权按钮 ===");
+        if (ShizukuHelper.checkSelfPermission()) {
+            Logger.d("Settings", "requestPermission: 权限已授予");
+            Toast.makeText(this, "权限已授予，无需重复操作", Toast.LENGTH_SHORT).show();
+            updatePermissionStatus();
             return;
         }
-        if (ShizukuHelper.checkSelfPermission()) {
-            Logger.d("Settings", "requestShizukuPermission: 权限已授予");
-            Toast.makeText(this, "Shizuku 权限已授予", Toast.LENGTH_SHORT).show();
-        } else {
-            Logger.d("Settings", "requestShizukuPermission: 权限未授予，开始请求...");
-            ShizukuHelper.requestPermission(REQUEST_CODE_SHIZUKU);
-            Logger.d("Settings", "requestShizukuPermission: requestPermission 调用完毕");
-            Toast.makeText(this, "正在请求 Shizuku 权限，请查看 Shizuku 应用", Toast.LENGTH_LONG).show();
-        }
+        Logger.d("Settings", "requestPermission: 权限未授予，引导用户...");
+        ShizukuHelper.requestPermission(this);
+        updatePermissionStatus();
     }
 
-    private void updateShizukuStatus() {
+    private void updatePermissionStatus() {
         TextView tvStatus = findViewById(R.id.tv_shizuku_status);
         if (tvStatus != null) {
-            if (!ShizukuHelper.isAvailable()) {
-                tvStatus.setText("Shizuku: 未安装/未运行");
-                tvStatus.setTextColor(0xFFFF9800);
-                Logger.d("Settings", "updateShizukuStatus: 未安装/未运行");
-            } else if (ShizukuHelper.checkSelfPermission()) {
-                tvStatus.setText("Shizuku 权限: 已授予");
+            boolean hasPermission = ShizukuHelper.checkSelfPermission();
+            if (hasPermission) {
+                tvStatus.setText("权限状态: 已授权 (可正常使用)");
                 tvStatus.setTextColor(0xFF4CAF50);
-                Logger.d("Settings", "updateShizukuStatus: 已授予");
+                Logger.d("Settings", "updatePermissionStatus: 已授权");
             } else {
-                tvStatus.setText("Shizuku 权限: 未授予");
+                tvStatus.setText("权限状态: 未授权 (点击下方按钮授权)");
                 tvStatus.setTextColor(0xFFF44336);
-                Logger.d("Settings", "updateShizukuStatus: 未授予");
+                Logger.d("Settings", "updatePermissionStatus: 未授权");
             }
         }
     }
@@ -259,15 +218,7 @@ public class SettingsActivity extends Activity {
     protected void onResume() {
         super.onResume();
         Logger.d("Settings", "=== SettingsActivity onResume ===");
-        updateShizukuStatus();
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        Logger.d("Settings", "=== SettingsActivity onDestroy ===");
-        if (permissionListener != null) {
-            ShizukuHelper.removeRequestPermissionResultListener(permissionListener);
-        }
+        // 用户可能从 Shizuku 返回，刷新权限状态
+        updatePermissionStatus();
     }
 }

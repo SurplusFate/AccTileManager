@@ -1,108 +1,114 @@
 package com.example.acctileman;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.widget.Toast;
 
 /**
- * Shizuku detection and permission helper.
- * Does NOT use Shizuku Java API (which requires moe.shizuku.server classes).
- * Instead, uses 'rish' command-line tool provided by Shizuku to detect availability
- * and execute shell commands.
+ * 权限辅助类。
+ * 检查 WRITE_SECURE_SETTINGS 权限是否已授予，并引导用户授权。
+ *
+ * 该权限无法在 app 内直接请求，需要外部授予:
+ *   方式1 (adb):     adb shell pm grant com.example.acctileman android.permission.WRITE_SECURE_SETTINGS
+ *   方式2 (Shizuku): 在 Shizuku 的终端中执行上述命令
+ *   方式3 (Root):    su -c "pm grant com.example.acctileman android.permission.WRITE_SECURE_SETTINGS"
  */
 public class ShizukuHelper {
 
-    /**
-     * Check if Shizuku is available by testing if 'rish' command works.
-     * rish is Shizuku's built-in remote shell tool.
-     */
-    public static boolean isAvailable() {
-        Logger.d("ShizukuHelper", "isAvailable: 检测 rish 命令...");
-        try {
-            Process p = Runtime.getRuntime().exec(new String[]{"sh", "-c",
-                    "which rish 2>/dev/null || echo not_found"});
-            BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
-            String line = reader.readLine();
-            reader.close();
-            p.waitFor();
-            if (line != null && !line.contains("not_found") && !line.isEmpty()) {
-                Logger.d("ShizukuHelper", "isAvailable: rish 找到: " + line);
-                return true;
-            }
-        } catch (Throwable t) {
-            Logger.e("ShizukuHelper", "isAvailable: 检测失败", t);
-        }
-
-        // 备选：检查 Shizuku 是否在运行（通过 content provider）
-        Logger.d("ShizukuHelper", "isAvailable: rish 未找到，尝试 am 检测 Shizuku");
-        try {
-            Process p = Runtime.getRuntime().exec(new String[]{"sh", "-c",
-                    "pm list packages 2>/dev/null | grep -i shizuku"});
-            BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
-            StringBuilder sb = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                sb.append(line);
-            }
-            reader.close();
-            p.waitFor();
-            boolean found = sb.toString().contains("shizuku");
-            Logger.d("ShizukuHelper", "isAvailable: Shizuku 包 " + (found ? "已安装" : "未安装"));
-            return found;
-        } catch (Throwable t) {
-            Logger.e("ShizukuHelper", "isAvailable: pm 检测失败", t);
-        }
-        return false;
-    }
+    private static final String TAG = "ShizukuHelper";
+    private static final String PACKAGE_NAME = "com.example.acctileman";
+    private static final String GRANT_CMD =
+            "pm grant com.example.acctileman android.permission.WRITE_SECURE_SETTINGS";
 
     /**
-     * Check if we can read/write secure settings via rish.
-     * Uses 'settings get' instead of 'dumpsys package' because:
-     * - 'dumpsys package' requires android.permission.DUMP (system-only)
-     * - 'settings get secure' tests the actual permission we need
+     * 检查 WRITE_SECURE_SETTINGS 权限是否已授予。
+     * 使用 PackageManager 检查，不依赖 shell 命令。
      */
     public static boolean checkSelfPermission() {
-        Logger.d("ShizukuHelper", "checkSelfPermission: 通过 settings 命令检查...");
-        String result = ShellHelper.run("settings", "get", "secure", "accessibility_enabled");
-        boolean granted = !result.contains("Permission") && !result.contains("denied")
-                && !result.contains("Error") && !result.contains("exception");
-        Logger.d("ShizukuHelper", "checkSelfPermission: " + granted + " (result="
-                + (result.length() > 100 ? result.substring(0, 100) + "..." : result) + ")");
-        return granted;
-    }
-
-    /**
-     * Request Shizuku permission - launches Shizuku app for user to grant permission.
-     */
-    public static void requestPermission(int requestCode) {
-        Logger.d("ShizukuHelper", "requestPermission: 尝试启动 Shizuku app");
         try {
-            // 尝试通过 am 启动 Shizuku
-            Process p = Runtime.getRuntime().exec(new String[]{"sh", "-c",
-                    "am start -n moe.shizuku.privileged.api/moe.shizuku.manager.ShizukuManagerActivity 2>/dev/null ||" +
-                    "am start -n rikka.shizuku/moe.shizuku.manager.ShizukuManagerActivity 2>/dev/null ||" +
-                    "am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER " +
-                    "-p rikka.shizuku 2>/dev/null ||" +
-                    "monkey -p rikka.shizuku -c android.intent.category.LAUNCHER 1 2>/dev/null"});
-            p.waitFor();
-            Logger.d("ShizukuHelper", "requestPermission: Shizuku 启动命令已执行");
+            int state = App.getContext().getPackageManager()
+                    .checkPermission("android.permission.WRITE_SECURE_SETTINGS", PACKAGE_NAME);
+            boolean granted = (state == PackageManager.PERMISSION_GRANTED);
+            Logger.d(TAG, "checkSelfPermission: " + granted + " (state=" + state + ")");
+            return granted;
         } catch (Throwable t) {
-            Logger.e("ShizukuHelper", "requestPermission: 启动 Shizuku 失败", t);
+            Logger.e(TAG, "checkSelfPermission: 检查失败", t);
+            return false;
         }
     }
 
-    // ---- 以下方法保留接口兼容性，内部不再使用 Java API ----
+    /**
+     * 检查权限是否可用（兼容旧接口）。
+     * 委托给 ShellHelper.isAvailable() 进行实际读写测试。
+     */
+    public static boolean isAvailable() {
+        boolean permGranted = checkSelfPermission();
+        boolean canRead = ShellHelper.isAvailable();
+        Logger.d(TAG, "isAvailable: 权限=" + permGranted + " 可读=" + canRead);
+        return permGranted && canRead;
+    }
+
+    /**
+     * 请求权限 —— 无法在 app 内直接请求，引导用户操作。
+     * 1. 检查 Shizuku 是否安装，如安装则打开 Shizuku
+     * 2. 同时将授权命令复制到剪贴板
+     */
+    public static void requestPermission(Context ctx) {
+        Logger.d(TAG, "requestPermission: 引导用户授权");
+
+        // 复制授权命令到剪贴板
+        try {
+            ClipboardManager cm = (ClipboardManager) ctx.getSystemService(Context.CLIPBOARD_SERVICE);
+            if (cm != null) {
+                cm.setPrimaryClip(ClipData.newPlainText("授权命令", GRANT_CMD));
+                Logger.d(TAG, "授权命令已复制到剪贴板");
+            }
+        } catch (Throwable t) {
+            Logger.e(TAG, "复制到剪贴板失败", t);
+        }
+
+        // 尝试打开 Shizuku app
+        boolean shizukuOpened = false;
+        try {
+            Intent intent = ctx.getPackageManager()
+                    .getLaunchIntentForPackage("rikka.shizuku");
+            if (intent != null) {
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                ctx.startActivity(intent);
+                shizukuOpened = true;
+                Logger.d(TAG, "已打开 Shizuku app");
+            }
+        } catch (Throwable t) {
+            Logger.e(TAG, "打开 Shizuku 失败", t);
+        }
+
+        // 显示引导信息
+        String msg;
+        if (shizukuOpened) {
+            msg = "已打开 Shizuku，请在 Shizuku 的终端中粘贴执行:\n" + GRANT_CMD
+                    + "\n（命令已复制到剪贴板）";
+        } else {
+            msg = "请通过以下方式授权:\n"
+                    + "adb: " + GRANT_CMD + "\n"
+                    + "（命令已复制到剪贴板）\n"
+                    + "或安装 Shizuku 后在其中执行";
+        }
+        Toast.makeText(ctx, msg, Toast.LENGTH_LONG).show();
+    }
+
+    // ---- 兼容旧接口，内部不再使用 ----
 
     public static Object createListener(PermissionCallback callback) {
-        Logger.d("ShizukuHelper", "createListener: 使用 rish 模式，不需要 listener");
         return null;
     }
 
     public static void addRequestPermissionResultListener(Object listener) {
-        // 不需要
     }
 
     public static void removeRequestPermissionResultListener(Object listener) {
-        // 不需要
     }
 
     public interface PermissionCallback {

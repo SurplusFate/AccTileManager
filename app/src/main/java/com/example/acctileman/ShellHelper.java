@@ -1,270 +1,192 @@
 package com.example.acctileman;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.InputStreamReader;
+import android.content.Context;
+import android.content.Intent;
+import android.provider.Settings;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * Shell command executor.
- * Strategy: Find rish executable (Shizuku's remote shell), copy to app private dir with chmod +x,
- * then use rish -c for privileged commands. Falls back to Runtime.exec if rish unavailable.
+ * 无障碍服务管理器。
+ * 直接使用 Settings.Secure API 读写无障碍服务列表。
+ * 需要 WRITE_SECURE_SETTINGS 权限（通过 adb 或 Shizuku 授予）。
+ *
+ * 授权方式（任选其一）:
+ *   adb:    adb shell pm grant com.example.acctileman android.permission.WRITE_SECURE_SETTINGS
+ *   Shizuku: 在 Shizuku app 中对该 app 授权
  */
 public class ShellHelper {
 
     private static final String TAG = "ShellHelper";
-    private static final java.util.regex.Pattern PKG_PATTERN =
-            java.util.regex.Pattern.compile("^[a-zA-Z][a-zA-Z0-9_.]*$");
-    private static final java.util.regex.Pattern SVC_PATTERN =
-            java.util.regex.Pattern.compile("^[a-zA-Z][a-zA-Z0-9_.]+/[a-zA-Z][a-zA-Z0-9_.]+$");
-    private static String rishPath = null;
-    private static boolean rishChecked = false;
+    private static Context appContext;
 
-    private static boolean isValidPackageName(String s) {
-        return s != null && !s.isEmpty() && PKG_PATTERN.matcher(s).matches();
-    }
-
-    private static boolean isValidServiceComponent(String s) {
-        return s != null && !s.isEmpty() && SVC_PATTERN.matcher(s).matches();
-    }
-
-    private static void drainAndWait(Process p, String desc) {
-        try {
-            java.io.InputStream stdout = p.getInputStream();
-            java.io.InputStream stderr = p.getErrorStream();
-            byte[] buf = new byte[256];
-            while (stdout.read(buf) > 0) {}
-            while (stderr.read(buf) > 0) {}
-        } catch (Throwable ignored) {}
-        try {
-            p.waitFor();
-        } catch (Throwable ignored) {}
-        try { p.destroy(); } catch (Throwable ignored) {}
+    /** 初始化，由 App.onCreate 调用 */
+    public static void init(Context ctx) {
+        appContext = ctx.getApplicationContext();
     }
 
     /**
-     * Search for rish and set rishPath.
-     * On Android 10+ with scoped storage, /sdcard/Download/ may not be readable.
-     * Prioritize /data/local/tmp/ paths where Shizuku typically installs the binary.
+     * 检查是否有 WRITE_SECURE_SETTINGS 权限。
+     * 方法：尝试读取 enabled_accessibility_services，如果返回 null 说明无权限。
      */
-    private static void findRish() {
-        if (rishChecked) return;
-        rishChecked = true;
-        Logger.d(TAG, "=== 搜索 rish 可执行文件 ===");
-
-        // Step 1: 搜索源文件位置（优先 /data/local/tmp/，避开分区存储限制）
-        String[] sourcePaths = {
-                "/data/local/tmp/rish",
-                "/data/local/tmp/rish_shizuku",
-                "/sdcard/rish",
-                "/storage/emulated/0/rish",
-                "/storage/emulated/0/Download/rish",
-                "/storage/emulated/0/Documents/rish",
-        };
-
-        // 先尝试不复制，直接用 /data/local/tmp 路径（通常 rish_shizuku 在这里）
-        for (String path : sourcePaths) {
-            if (path.startsWith("/data/local/tmp/") || path.startsWith("/sdcard/")) {
-                File f = new File(path);
-                if (f.exists() && f.length() > 0 && f.canExecute()) {
-                    rishPath = path;
-                    Logger.d(TAG, "rish 直接使用: " + path);
-                    return;
-                }
-            }
-        }
-
-        // Step 2: 复制到 app 私有目录并赋予可执行权限
-        for (String sourcePath : sourcePaths) {
-            File srcFile = new File(sourcePath);
-            if (!srcFile.exists() || srcFile.length() <= 0) continue;
-            Logger.d(TAG, "rish 源文件找到: " + sourcePath + " (" + srcFile.length() + " bytes)");
-
-            try {
-                File appDir = new File("/data/data/com.example.acctileman/files");
-                if (!appDir.exists()) appDir.mkdirs();
-                File rishFile = new File(appDir, "rish");
-
-                // 优先用 shell cp（在某些设备上可绕过分区存储）
-                try {
-                    Process cp = Runtime.getRuntime().exec(new String[]{
-                            "sh", "-c", "cp " + sourcePath + " " + rishFile.getAbsolutePath()
-                                    + " && chmod 755 " + rishFile.getAbsolutePath()
-                    });
-                    drainAndWait(cp, "shell cp");
-                    if (rishFile.exists() && rishFile.length() > 0) {
-                        rishPath = rishFile.getAbsolutePath();
-                        Logger.d(TAG, "rish (shell cp) 已复制到: " + rishPath);
-                        return;
-                    }
-                } catch (Throwable ignored) {}
-
-                // 回退到 Java IO 复制
-                try {
-                    try (java.io.FileInputStream in = new java.io.FileInputStream(sourcePath);
-                         java.io.FileOutputStream out = new java.io.FileOutputStream(rishFile)) {
-                        byte[] buf = new byte[4096];
-                        int len;
-                        while ((len = in.read(buf)) > 0) out.write(buf, 0, len);
-                    }
-
-                    try {
-                        Process chmod = Runtime.getRuntime().exec(
-                                new String[]{"chmod", "755", rishFile.getAbsolutePath()});
-                        drainAndWait(chmod, "chmod");
-                    } catch (Throwable chmodEx) {
-                        Logger.w(TAG, "chmod 失败: " + chmodEx.getMessage());
-                    }
-
-                    if (rishFile.length() > 0) {
-                        rishPath = rishFile.getAbsolutePath();
-                        Logger.d(TAG, "rish (java io) 已复制到: " + rishPath);
-                        return;
-                    }
-                } catch (Throwable ioEx) {
-                    Logger.w(TAG, "Java IO 复制失败(" + sourcePath + "): " + ioEx.getMessage());
-                }
-            } catch (Throwable t) {
-                Logger.w(TAG, "复制 rish 失败(" + sourcePath + "): " + t.getMessage());
-            }
-        }
-
-        // Step 3: 检查 app 私有目录是否已有 rish
-        File appRish = new File("/data/data/com.example.acctileman/files/rish");
-        if (appRish.exists() && appRish.length() > 0) {
-            rishPath = appRish.getAbsolutePath();
-            Logger.d(TAG, "rish 在 app 私有目录已存在: " + rishPath);
-            return;
-        }
-
-        // Step 4: 尝试 which
-        try {
-            Process p = Runtime.getRuntime().exec(new String[]{"sh", "-c",
-                    "which rish 2>/dev/null"});
-            java.io.BufferedReader reader = new java.io.BufferedReader(
-                    new java.io.InputStreamReader(p.getInputStream()));
-            String line = reader.readLine();
-            reader.close();
-            drainAndWait(p, "which");
-            if (line != null && !line.isEmpty()) {
-                rishPath = line.trim();
-                Logger.d(TAG, "rish 通过 which 找到: " + rishPath);
-                return;
-            }
-        } catch (Throwable ignored) {}
-
-        Logger.d(TAG, "rish 未找到，将使用 Runtime.exec（无特权）");
-        Logger.w(TAG, "请确保已通过 Shizuku 导出 rish 到 /data/local/tmp/ 目录");
-    }
-
     public static boolean isAvailable() {
-        findRish();
-        return rishPath != null;
+        if (appContext == null) {
+            Logger.w(TAG, "isAvailable: appContext 为 null，未初始化");
+            return false;
+        }
+        try {
+            // 能读到值（包括空字符串）说明有权限；返回 null 说明无权限
+            String val = Settings.Secure.getString(
+                    appContext.getContentResolver(),
+                    Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
+            boolean hasPermission = (val != null);
+            Logger.d(TAG, "isAvailable: " + hasPermission + " (val=" + truncate(val, 100) + ")");
+            return hasPermission;
+        } catch (Throwable t) {
+            Logger.e(TAG, "isAvailable: 检查失败", t);
+            return false;
+        }
     }
 
-    public static String run(String... cmd) {
-        String cmdStr = String.join(" ", cmd);
-        Logger.d(TAG, "run: " + cmdStr);
-
-        findRish();
+    /** 获取当前已启用的无障碍服务列表 */
+    public static String getEnabledServices() {
+        if (appContext == null) return "";
         try {
-            String[] execCmd;
-            if (rishPath != null) {
-                execCmd = new String[]{rishPath, "-c", cmdStr};
-                Logger.d(TAG, "exec(rish): " + String.join(" ", execCmd));
-            } else {
-                execCmd = cmd;
-                Logger.d(TAG, "exec(runtime): " + String.join(" ", execCmd));
-            }
-
-            Process process = Runtime.getRuntime().exec(execCmd);
-            String stdout = readStream(process.getInputStream());
-            String stderr = readStream(process.getErrorStream());
-            int exitCode = process.waitFor();
-            Logger.d(TAG, "结果: exit=" + exitCode + " stdout=" + truncate(stdout, 300));
-            if (exitCode != 0) {
-                Logger.w(TAG, "非零退出码: " + exitCode + " stderr=" + truncate(stderr, 200));
-            }
-            return stdout.trim();
+            String raw = Settings.Secure.getString(
+                    appContext.getContentResolver(),
+                    Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
+            return raw != null ? raw : "";
         } catch (Throwable t) {
-            Logger.e(TAG, "run 异常: " + cmdStr, t);
+            Logger.e(TAG, "getEnabledServices 失败", t);
             return "";
         }
     }
 
-    public static void exec(String... cmd) {
-        run(cmd);
-    }
-
-    public static String getEnabledServices() {
-        return run("settings", "get", "secure", "enabled_accessibility_services");
-    }
-
+    /**
+     * 启用指定的无障碍服务。
+     * @param serviceComponent 格式: 包名/服务类全名，如 com.example.app/.MyAccessibilityService
+     * @return true 表示操作成功
+     */
     public static boolean enableService(String serviceComponent) {
         Logger.d(TAG, "enableService: " + serviceComponent);
-        if (!isValidServiceComponent(serviceComponent)) {
-            Logger.w(TAG, "enableService: 无效的服务组件名: " + serviceComponent);
+        if (!isAvailable()) {
+            Logger.w(TAG, "enableService: 无 WRITE_SECURE_SETTINGS 权限");
             return false;
         }
-        String current = getEnabledServices();
-        if (current.contains(serviceComponent)) {
-            Logger.d(TAG, "enableService: 已启用，跳过");
+
+        List<String> services = parseServiceList(getEnabledServices());
+        if (services.contains(serviceComponent)) {
+            Logger.d(TAG, "enableService: 已在列表中，跳过");
             return true;
         }
-        String newList = current.isEmpty() ? serviceComponent : current + ":" + serviceComponent;
-        Logger.d(TAG, "enableService: 新列表=" + newList);
-        exec("settings", "put", "secure", "enabled_accessibility_services", newList);
-        exec("settings", "put", "secure", "accessibility_enabled", "1");
-        return true;
+        services.add(serviceComponent);
+        String newList = joinServiceList(services);
+
+        boolean ok = Settings.Secure.putString(
+                appContext.getContentResolver(),
+                Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,
+                newList);
+        Settings.Secure.putInt(
+                appContext.getContentResolver(),
+                Settings.Secure.ACCESSIBILITY_ENABLED,
+                1);
+        Logger.d(TAG, "enableService: putString=" + ok + " newList=" + truncate(newList, 200));
+        return ok;
     }
 
+    /**
+     * 禁用指定的无障碍服务。
+     * @param serviceComponent 格式: 包名/服务类全名
+     * @return true 表示操作成功
+     */
     public static boolean disableService(String serviceComponent) {
         Logger.d(TAG, "disableService: " + serviceComponent);
-        if (!isValidServiceComponent(serviceComponent)) {
-            Logger.w(TAG, "disableService: 无效的服务组件名: " + serviceComponent);
+        if (!isAvailable()) {
+            Logger.w(TAG, "disableService: 无 WRITE_SECURE_SETTINGS 权限");
             return false;
         }
-        String current = getEnabledServices();
-        if (!current.contains(serviceComponent)) {
-            Logger.d(TAG, "disableService: 未启用，跳过");
+
+        List<String> services = parseServiceList(getEnabledServices());
+        boolean removed = services.remove(serviceComponent);
+        if (!removed) {
+            Logger.d(TAG, "disableService: 不在列表中，跳过");
             return true;
         }
-        String newList = current
-                .replaceAll("(?<!\\S)" + java.util.regex.Pattern.quote(serviceComponent) + "(?!\\S)", "")
-                .replaceAll("::+", ":")
-                .replaceAll("^:+|:+$", "");
-        Logger.d(TAG, "disableService: 新列表=" + newList);
-        exec("settings", "put", "secure", "enabled_accessibility_services", newList);
-        if (newList.isEmpty()) {
-            exec("settings", "put", "secure", "accessibility_enabled", "0");
+        String newList = joinServiceList(services);
+
+        boolean ok = Settings.Secure.putString(
+                appContext.getContentResolver(),
+                Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,
+                newList);
+        if (services.isEmpty()) {
+            Settings.Secure.putInt(
+                    appContext.getContentResolver(),
+                    Settings.Secure.ACCESSIBILITY_ENABLED,
+                    0);
         }
-        return true;
+        Logger.d(TAG, "disableService: putString=" + ok + " newList=" + truncate(newList, 200));
+        return ok;
     }
 
+    /** 启动指定 app（使用 PackageManager，不需要特权） */
     public static void launchApp(String packageName) {
         Logger.d(TAG, "launchApp: " + packageName);
-        if (!isValidPackageName(packageName)) {
-            Logger.w(TAG, "launchApp: 无效的包名: " + packageName);
-            return;
+        if (appContext == null) return;
+        try {
+            Intent intent = appContext.getPackageManager()
+                    .getLaunchIntentForPackage(packageName);
+            if (intent != null) {
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                appContext.startActivity(intent);
+                Logger.d(TAG, "launchApp: 已启动 " + packageName);
+            } else {
+                Logger.w(TAG, "launchApp: 无可启动的 Activity for " + packageName);
+            }
+        } catch (Throwable t) {
+            Logger.e(TAG, "launchApp 失败", t);
         }
-        run("monkey", "-p", packageName, "-c", "android.intent.category.LAUNCHER", "1");
     }
 
+    /**
+     * 强制停止 app（需要特权，通过 Shizuku 执行）。
+     * 如果无特权则静默跳过。
+     */
     public static void forceStopApp(String packageName) {
         Logger.d(TAG, "forceStopApp: " + packageName);
-        if (!isValidPackageName(packageName)) {
-            Logger.w(TAG, "forceStopApp: 无效的包名: " + packageName);
-            return;
+        // 尝试通过 Shizuku 的 am force-stop
+        try {
+            Process p = Runtime.getRuntime().exec(new String[]{
+                    "am", "force-stop", packageName
+            });
+            int exitCode = p.waitFor();
+            Logger.d(TAG, "forceStopApp: exit=" + exitCode);
+        } catch (Throwable t) {
+            Logger.e(TAG, "forceStopApp 失败（无特权，已跳过）", t);
         }
-        exec("am", "force-stop", packageName);
     }
 
-    private static String readStream(java.io.InputStream is) throws java.io.IOException {
-        BufferedReader reader = new BufferedReader(new InputStreamReader(is));
+    // ---- 工具方法 ----
+
+    private static List<String> parseServiceList(String raw) {
+        List<String> list = new ArrayList<>();
+        if (raw == null || raw.isEmpty()) return list;
+        // 服务列表以 : 分隔，格式: pkg1/svc1:pkg2/svc2
+        String[] parts = raw.split(":");
+        for (String part : parts) {
+            String trimmed = part.trim();
+            if (!trimmed.isEmpty()) {
+                list.add(trimmed);
+            }
+        }
+        return list;
+    }
+
+    private static String joinServiceList(List<String> services) {
         StringBuilder sb = new StringBuilder();
-        String line;
-        while ((line = reader.readLine()) != null) {
-            if (sb.length() > 0) sb.append("\n");
-            sb.append(line);
+        for (int i = 0; i < services.size(); i++) {
+            if (i > 0) sb.append(":");
+            sb.append(services.get(i));
         }
         return sb.toString();
     }

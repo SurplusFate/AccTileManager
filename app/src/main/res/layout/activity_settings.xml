@@ -132,7 +132,7 @@
             android:layout_marginTop="24dp"
             android:textSize="12sp"
             android:textColor="#999999"
-            android:text="使用说明:\n1. 先安装并启动 Shizuku\n2. 点击「授予权限」授予 WRITE_SECURE_SETTINGS 权限\n3. 填写无障碍服务组件名（格式: 包名/服务类名）\n4. 可选填 App 包名，开启时自动启动\n5. 保存后，下拉通知栏 → 编辑快捷开关 → 添加「无障碍 N」\n6. 点击磁贴即可一键开启/关闭无障碍权限" />
+            android:text="使用说明:\n1. 点击「授予权限」，通过 adb 或 Shizuku 授权\n   命令: pm grant com.example.acctileman android.permission.WRITE_SECURE_SETTINGS\n2. 授权成功后状态变为绿色「已授权」\n3. 填写无障碍服务组件名（格式: 包名/服务类名）\n4. 可选填 App 包名，开启时自动启动\n5. 保存后，下拉通知栏 → 编辑快捷开关 → 添加「无障碍 N」\n6. 点击磁贴即可一键开启/关闭无障碍权限" />
 
     </LinearLayout>
 </ScrollView>

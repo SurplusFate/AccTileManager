@@ -17,12 +17,22 @@ import java.util.Locale;
  */
 public class App extends Application {
 
+    private static android.content.Context appContext;
+
+    /** 获取全局 Application Context */
+    public static android.content.Context getContext() {
+        return appContext;
+    }
+
     @Override
     public void onCreate() {
         super.onCreate();
+        appContext = this;
         Logger.init(this);
+        ShellHelper.init(this);
         Logger.d("App", "=== App onCreate ===");
         Logger.d("App", "日志路径: " + Logger.getLogPath());
+        Logger.d("App", "WRITE_SECURE_SETTINGS 权限: " + ShizukuHelper.checkSelfPermission());
 
         Thread.UncaughtExceptionHandler defaultHandler = Thread.getDefaultUncaughtExceptionHandler();
         Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
