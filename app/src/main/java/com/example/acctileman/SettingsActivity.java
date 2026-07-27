@@ -147,14 +147,18 @@ public class SettingsActivity extends Activity {
     }
 
     private void showCurrentServices() {
+        if (!ShellHelper.isAvailable()) {
+            Toast.makeText(this, "Shizuku 不可用，请确保已安装并运行", Toast.LENGTH_SHORT).show();
+            return;
+        }
         try {
             String result = ShellHelper.getEnabledServices();
             if (result.isEmpty()) {
                 result = "(无已启用的无障碍服务)";
             }
             Toast.makeText(this, result, Toast.LENGTH_LONG).show();
-        } catch (Exception e) {
-            Toast.makeText(this, "需要先授予 Shizuku 权限", Toast.LENGTH_SHORT).show();
+        } catch (Throwable t) {
+            Toast.makeText(this, "Shizuku 调用失败: " + t.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
 

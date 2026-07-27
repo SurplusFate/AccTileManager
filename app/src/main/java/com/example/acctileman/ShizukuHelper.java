@@ -27,16 +27,21 @@ public class ShizukuHelper {
 
     private static void init() {
         try {
-            shizukuClass = Class.forName("rikka.shizuku.Shizuku");
+            // Use initialize=false to avoid triggering static initializer
+            // which requires IShizukuApplication$Stub (not in our DEX)
+            shizukuClass = Class.forName("rikka.shizuku.Shizuku", false,
+                    ShizukuHelper.class.getClassLoader());
             checkSelfPermissionMethod = shizukuClass.getMethod("checkSelfPermission");
             requestPermissionMethod = shizukuClass.getMethod("requestPermission", int.class);
+            // Load listener class without initializing
+            listenerClass = Class.forName("rikka.shizuku.Shizuku$OnRequestPermissionResultListener",
+                    false, ShizukuHelper.class.getClassLoader());
             addRequestPermissionResultListenerMethod = shizukuClass.getMethod(
-                    "addRequestPermissionResultListener", Class.forName("rikka.shizuku.Shizuku$OnRequestPermissionResultListener"));
+                    "addRequestPermissionResultListener", listenerClass);
             removeRequestPermissionResultListenerMethod = shizukuClass.getMethod(
-                    "removeRequestPermissionResultListener", Class.forName("rikka.shizuku.Shizuku$OnRequestPermissionResultListener"));
-            listenerClass = Class.forName("rikka.shizuku.Shizuku$OnRequestPermissionResultListener");
+                    "removeRequestPermissionResultListener", listenerClass);
         } catch (Throwable t) {
-            // Shizuku library not available
+            // Shizuku library not available or missing dependencies
             shizukuClass = null;
         }
     }

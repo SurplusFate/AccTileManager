@@ -8,8 +8,6 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.lang.reflect.Method;
 
-import rikka.shizuku.Shizuku;
-
 /**
  * Helper class to execute shell commands via Shizuku.
  * Uses reflection to call Shizuku.newProcess() which is private in the API.
@@ -20,14 +18,21 @@ public class ShellHelper {
     private static final String TAG = "AccTileMan";
 
     private static Method newProcessMethod = null;
+    private static boolean initialized = false;
 
-    static {
+    private static void init() {
+        if (initialized) return;
+        initialized = true;
         try {
-            newProcessMethod = Shizuku.class.getDeclaredMethod(
+            // Load class via reflection to avoid triggering static initializer
+            Class<?> shizukuClass = Class.forName("rikka.shizuku.Shizuku", false,
+                    ShellHelper.class.getClassLoader());
+            newProcessMethod = shizukuClass.getDeclaredMethod(
                     "newProcess", String[].class, String[].class, String.class);
             newProcessMethod.setAccessible(true);
-        } catch (Exception e) {
-            Log.e(TAG, "Failed to get Shizuku.newProcess method", e);
+        } catch (Throwable t) {
+            Log.e(TAG, "Shizuku.newProcess not available: " + t.getMessage());
+            newProcessMethod = null;
         }
     }
 
@@ -35,16 +40,26 @@ public class ShellHelper {
      * Execute a command via Shizuku and return the Process object.
      */
     private static Process shizukuExec(String[] cmd) {
+        init();
         if (newProcessMethod == null) {
             Log.e(TAG, "Shizuku.newProcess not available");
             return null;
         }
         try {
             return (Process) newProcessMethod.invoke(null, cmd, null, null);
-        } catch (Exception e) {
-            Log.e(TAG, "shizukuExec failed: " + String.join(" ", cmd), e);
+        } catch (Throwable t) {
+            // Catch Throwable, not Exception, because NoClassDefFoundError is an Error
+            Log.e(TAG, "shizukuExec failed: " + String.join(" ", cmd) + " : " + t.getMessage());
             return null;
         }
+    }
+
+    /**
+     * Check if Shizuku shell execution is available.
+     */
+    public static boolean isAvailable() {
+        init();
+        return newProcessMethod != null;
     }
 
     /**
@@ -61,8 +76,8 @@ public class ShellHelper {
                 Log.w(TAG, "cmd exit " + exitCode + ": " + String.join(" ", cmd) + " | err: " + stderr);
             }
             return stdout.trim();
-        } catch (Exception e) {
-            Log.e(TAG, "run failed: " + String.join(" ", cmd), e);
+        } catch (Throwable t) {
+            Log.e(TAG, "run failed: " + String.join(" ", cmd) + " : " + t.getMessage());
             return "";
         }
     }
@@ -74,8 +89,8 @@ public class ShellHelper {
         try {
             Process process = shizukuExec(cmd);
             if (process != null) process.waitFor();
-        } catch (Exception e) {
-            Log.e(TAG, "exec failed: " + String.join(" ", cmd), e);
+        } catch (Throwable t) {
+            Log.e(TAG, "exec failed: " + String.join(" ", cmd) + " : " + t.getMessage());
         }
     }
 
