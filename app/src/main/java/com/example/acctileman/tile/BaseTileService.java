@@ -115,6 +115,7 @@ public abstract class BaseTileService extends TileService {
 
         if (config.stopApp && config.appPackage != null && !config.appPackage.isEmpty()) {
             ShellHelper.forceStopApp(config.appPackage);
+            ShellHelper.clearNotifications(config.appPackage);
         }
 
         setSlotState(false);

@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.provider.Settings;
 
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -162,7 +163,6 @@ public class ShellHelper {
      */
     public static void forceStopApp(String packageName) {
         Logger.d(TAG, "forceStopApp: " + packageName);
-        // 尝试通过 Shizuku 的 am force-stop
         try {
             Process p = Runtime.getRuntime().exec(new String[]{
                     "am", "force-stop", packageName
@@ -174,7 +174,36 @@ public class ShellHelper {
         }
     }
 
+    /**
+     * 清除指定 app 的所有通知。
+     * 需要 WRITE_SECURE_SETTINGS 权限。
+     */
+    public static void clearNotifications(String packageName) {
+        Logger.d(TAG, "clearNotifications: " + packageName);
+        try {
+            Process p = Runtime.getRuntime().exec(new String[]{
+                    "service", "call", "notification", "1", "cancel_all", packageName
+            });
+            drainAndWait(p, "clearNotifications");
+            Logger.d(TAG, "clearNotifications: 完成");
+        } catch (Throwable t) {
+            Logger.e(TAG, "clearNotifications 失败", t);
+        }
+    }
+
     // ---- 工具方法 ----
+
+    private static void drainAndWait(Process p, String desc) {
+        try {
+            InputStream stdout = p.getInputStream();
+            InputStream stderr = p.getErrorStream();
+            byte[] buf = new byte[256];
+            while (stdout.read(buf) > 0) {}
+            while (stderr.read(buf) > 0) {}
+        } catch (Throwable ignored) {}
+        try { p.waitFor(); } catch (Throwable ignored) {}
+        try { p.destroy(); } catch (Throwable ignored) {}
+    }
 
     private static List<String> parseServiceList(String raw) {
         List<String> list = new ArrayList<>();
