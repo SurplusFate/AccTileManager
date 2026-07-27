@@ -73,7 +73,19 @@ public abstract class BaseTileService extends TileService {
         }
 
         Logger.d("Tile", "ENABLE slot=" + getSlotIndex() + " service=" + config.accessibilityService);
-        ShellHelper.enableService(config.accessibilityService);
+        boolean ok = ShellHelper.enableService(config.accessibilityService);
+        Logger.d("Tile", "enableService 结果: " + ok);
+
+        if (!ok) {
+            Logger.e("Tile", "启用无障碍服务失败，不继续启动App");
+            try {
+                android.widget.Toast.makeText(
+                        App.getContext(),
+                        "启用失败，请检查权限和服务名",
+                        android.widget.Toast.LENGTH_SHORT).show();
+            } catch (Throwable ignored) {}
+            return;
+        }
 
         if (config.launchApp && config.appPackage != null && !config.appPackage.isEmpty()) {
             ShellHelper.launchApp(config.appPackage);
@@ -87,7 +99,19 @@ public abstract class BaseTileService extends TileService {
         if (config == null || config.isEmpty()) return;
 
         Logger.d("Tile", "DISABLE slot=" + getSlotIndex() + " service=" + config.accessibilityService);
-        ShellHelper.disableService(config.accessibilityService);
+        boolean ok = ShellHelper.disableService(config.accessibilityService);
+        Logger.d("Tile", "disableService 结果: " + ok);
+
+        if (!ok) {
+            Logger.e("Tile", "禁用无障碍服务失败");
+            try {
+                android.widget.Toast.makeText(
+                        App.getContext(),
+                        "禁用失败，请检查权限",
+                        android.widget.Toast.LENGTH_SHORT).show();
+            } catch (Throwable ignored) {}
+            return;
+        }
 
         if (config.stopApp && config.appPackage != null && !config.appPackage.isEmpty()) {
             ShellHelper.forceStopApp(config.appPackage);
@@ -101,19 +125,35 @@ public abstract class BaseTileService extends TileService {
         if (tile == null) return;
 
         SlotConfig config = getSlotConfig();
-        boolean active = getSlotState();
-
         if (config == null || config.isEmpty()) {
             tile.setState(Tile.STATE_INACTIVE);
             tile.setLabel("未配置");
             tile.setIcon(Icon.createWithResource(this, R.drawable.ic_tile_empty));
-        } else {
-            tile.setState(active ? Tile.STATE_ACTIVE : Tile.STATE_INACTIVE);
-            tile.setLabel(config.label);
-            tile.setIcon(Icon.createWithResource(this,
-                    active ? R.drawable.ic_tile_on : R.drawable.ic_tile_off));
+            tile.updateTile();
+            return;
         }
+
+        // 检查服务是否实际在已启用列表中（而非仅依赖本地 preference）
+        boolean active = isServiceActuallyEnabled(config.accessibilityService);
+        Logger.d("Tile", "updateTileUI: slot=" + getSlotIndex()
+                + " active=" + active + " service=" + config.accessibilityService);
+
+        tile.setState(active ? Tile.STATE_ACTIVE : Tile.STATE_INACTIVE);
+        tile.setLabel(config.label);
+        tile.setIcon(Icon.createWithResource(this,
+                active ? R.drawable.ic_tile_on : R.drawable.ic_tile_off));
         tile.updateTile();
+    }
+
+    /** 检查服务是否实际在系统的已启用无障碍服务列表中 */
+    private boolean isServiceActuallyEnabled(String serviceComponent) {
+        try {
+            String enabled = ShellHelper.getEnabledServices();
+            return enabled != null && enabled.contains(serviceComponent);
+        } catch (Throwable t) {
+            Logger.e("Tile", "isServiceActuallyEnabled 失败", t);
+            return getSlotState();
+        }
     }
 
     private SharedPreferences getPrefs() {
