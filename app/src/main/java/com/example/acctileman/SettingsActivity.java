@@ -128,6 +128,15 @@ public class SettingsActivity extends Activity {
         boolean launch = cbLaunch != null && cbLaunch.isChecked();
         boolean stop = cbStop != null && cbStop.isChecked();
 
+        // 验证服务组件名格式
+        if (!service.isEmpty() && !service.contains("/")) {
+            Logger.w("Settings", "saveSlot " + slot + ": 服务组件名格式错误: " + service);
+            Toast.makeText(this,
+                    "服务组件名格式错误！\n应为: 包名/服务类名\n例如: com.example.app/.MyService",
+                    Toast.LENGTH_LONG).show();
+            return;
+        }
+
         editor.putString(prefix + "app", app);
         editor.putString(prefix + "service", service);
         editor.putString(prefix + "label", label.isEmpty() ? "无障碍 " + (slot + 1) : label);

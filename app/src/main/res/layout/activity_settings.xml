@@ -95,7 +95,7 @@
             android:layout_marginTop="8dp"
             android:layout_marginBottom="8dp" />
         <EditText android:id="@+id/et_label_0" android:layout_width="match_parent" android:layout_height="44dp" android:hint="磁贴显示名称 (如: 全局复制)" android:textSize="14sp" android:inputType="text" android:singleLine="true" android:layout_marginBottom="6dp"/>
-        <EditText android:id="@+id/et_service_0" android:layout_width="match_parent" android:layout_height="44dp" android:hint="无障碍服务组件名 (包名/服务类名)" android:textSize="13sp" android:inputType="text" android:singleLine="true" android:layout_marginBottom="6dp"/>
+        <EditText android:id="@+id/et_service_0" android:layout_width="match_parent" android:layout_height="44dp" android:hint="组件名: 包名/完整服务类名, 如 a.b/.x.Y" android:textSize="13sp" android:inputType="text" android:singleLine="true" android:layout_marginBottom="6dp"/>
         <EditText android:id="@+id/et_app_0" android:layout_width="match_parent" android:layout_height="44dp" android:hint="App 包名 (可选，开启时自动启动)" android:textSize="13sp" android:inputType="text" android:singleLine="true" android:layout_marginBottom="6dp"/>
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginBottom="8dp">
             <CheckBox android:id="@+id/cb_launch_0" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="开启时启动App" android:textSize="13sp" android:checked="true"/>
@@ -106,7 +106,7 @@
         <!-- ===== Slot 1 ===== -->
         <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="━━━ 磁贴 2 ━━━" android:textSize="14sp" android:textStyle="bold" android:gravity="center" android:layout_marginTop="16dp" android:layout_marginBottom="8dp"/>
         <EditText android:id="@+id/et_label_1" android:layout_width="match_parent" android:layout_height="44dp" android:hint="磁贴显示名称" android:textSize="14sp" android:inputType="text" android:singleLine="true" android:layout_marginBottom="6dp"/>
-        <EditText android:id="@+id/et_service_1" android:layout_width="match_parent" android:layout_height="44dp" android:hint="无障碍服务组件名 (包名/服务类名)" android:textSize="13sp" android:inputType="text" android:singleLine="true" android:layout_marginBottom="6dp"/>
+        <EditText android:id="@+id/et_service_1" android:layout_width="match_parent" android:layout_height="44dp" android:hint="组件名: 包名/完整服务类名, 如 a.b/.x.Y" android:textSize="13sp" android:inputType="text" android:singleLine="true" android:layout_marginBottom="6dp"/>
         <EditText android:id="@+id/et_app_1" android:layout_width="match_parent" android:layout_height="44dp" android:hint="App 包名 (可选)" android:textSize="13sp" android:inputType="text" android:singleLine="true" android:layout_marginBottom="6dp"/>
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginBottom="8dp">
             <CheckBox android:id="@+id/cb_launch_1" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="开启时启动App" android:textSize="13sp" android:checked="true"/>
@@ -117,7 +117,7 @@
         <!-- ===== Slot 2 ===== -->
         <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="━━━ 磁贴 3 ━━━" android:textSize="14sp" android:textStyle="bold" android:gravity="center" android:layout_marginTop="16dp" android:layout_marginBottom="8dp"/>
         <EditText android:id="@+id/et_label_2" android:layout_width="match_parent" android:layout_height="44dp" android:hint="磁贴显示名称" android:textSize="14sp" android:inputType="text" android:singleLine="true" android:layout_marginBottom="6dp"/>
-        <EditText android:id="@+id/et_service_2" android:layout_width="match_parent" android:layout_height="44dp" android:hint="无障碍服务组件名 (包名/服务类名)" android:textSize="13sp" android:inputType="text" android:singleLine="true" android:layout_marginBottom="6dp"/>
+        <EditText android:id="@+id/et_service_2" android:layout_width="match_parent" android:layout_height="44dp" android:hint="组件名: 包名/完整服务类名, 如 a.b/.x.Y" android:textSize="13sp" android:inputType="text" android:singleLine="true" android:layout_marginBottom="6dp"/>
         <EditText android:id="@+id/et_app_2" android:layout_width="match_parent" android:layout_height="44dp" android:hint="App 包名 (可选)" android:textSize="13sp" android:inputType="text" android:singleLine="true" android:layout_marginBottom="6dp"/>
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginBottom="8dp">
             <CheckBox android:id="@+id/cb_launch_2" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="开启时启动App" android:textSize="13sp" android:checked="true"/>
@@ -132,7 +132,7 @@
             android:layout_marginTop="24dp"
             android:textSize="12sp"
             android:textColor="#999999"
-            android:text="使用说明:\n1. 点击「授予权限」，通过 adb 或 Shizuku 授权\n   命令: pm grant com.example.acctileman android.permission.WRITE_SECURE_SETTINGS\n2. 授权成功后状态变为绿色「已授权」\n3. 填写无障碍服务组件名（格式: 包名/服务类名）\n4. 可选填 App 包名，开启时自动启动\n5. 保存后，下拉通知栏 → 编辑快捷开关 → 添加「无障碍 N」\n6. 点击磁贴即可一键开启/关闭无障碍权限" />
+            android:text="使用说明:\n1. 点击「授予权限」，通过 adb 或 Shizuku 授权\n   命令: pm grant com.example.acctileman android.permission.WRITE_SECURE_SETTINGS\n2. 授权成功后状态变为绿色「已授权」\n3. 填写无障碍服务组件名（格式: 包名/服务类名）\n   正确格式示例: com.camel.corp.universalcopy/com.camel.corp.universalcopy.UniversalCopyService\n   ❌ 错误格式: com.camel.corp.universalcopy （缺少 '/' 和服务类名）\n   获取方法: 点击「查看当前无障碍服务列表」复制完整组件名\n4. 可选填 App 包名，开启时自动启动\n5. 保存后，下拉通知栏 → 编辑快捷开关 → 添加「无障碍 N」\n6. 点击磁贴即可一键开启/关闭无障碍权限" />
 
     </LinearLayout>
 </ScrollView>

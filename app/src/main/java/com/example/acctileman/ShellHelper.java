@@ -74,6 +74,10 @@ public class ShellHelper {
             Logger.w(TAG, "enableService: 无 WRITE_SECURE_SETTINGS 权限");
             return false;
         }
+        if (!isValidServiceComponent(serviceComponent)) {
+            Logger.e(TAG, "enableService: 无效的服务组件名（必须包含 '/'）：" + serviceComponent);
+            return false;
+        }
 
         List<String> services = parseServiceList(getEnabledServices());
         if (services.contains(serviceComponent)) {
@@ -104,6 +108,10 @@ public class ShellHelper {
         Logger.d(TAG, "disableService: " + serviceComponent);
         if (!isAvailable()) {
             Logger.w(TAG, "disableService: 无 WRITE_SECURE_SETTINGS 权限");
+            return false;
+        }
+        if (!isValidServiceComponent(serviceComponent)) {
+            Logger.e(TAG, "disableService: 无效的服务组件名（必须包含 '/'）：" + serviceComponent);
             return false;
         }
 
@@ -189,6 +197,11 @@ public class ShellHelper {
             sb.append(services.get(i));
         }
         return sb.toString();
+    }
+
+    /** 验证服务组件名格式：必须包含 '/' */
+    private static boolean isValidServiceComponent(String s) {
+        return s != null && s.contains("/");
     }
 
     private static String truncate(String s, int maxLen) {
