@@ -1,12 +1,15 @@
 package com.example.acctileman;
 
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.InputStreamReader;
 
 /**
- * Shizuku detection and shell execution.
- * Strategy: Use 'rish' if found in common paths, otherwise use Runtime.exec.
- * rish is exported by Shizuku app to accessible locations.
+ * Shell command executor.
+ * Strategy: Find rish executable (Shizuku's remote shell), copy to app private dir with chmod +x,
+ * then use rish -c for privileged commands. Falls back to Runtime.exec if rish unavailable.
  */
 public class ShellHelper {
 
@@ -15,39 +18,70 @@ public class ShellHelper {
     private static boolean rishChecked = false;
 
     /**
-     * Search for rish in known locations.
+     * Search for rish and copy to app private dir with execute permission.
      */
     private static void findRish() {
         if (rishChecked) return;
         rishChecked = true;
         Logger.d(TAG, "=== 搜索 rish 可执行文件 ===");
 
-        // Common locations where Shizuku exports rish
-        String[] searchPaths = {
+        // Step 1: 搜索源文件位置（Shizuku 导出的位置）
+        String[] sourcePaths = {
                 "/data/local/tmp/rish",
                 "/sdcard/rish",
                 "/storage/emulated/0/rish",
                 "/storage/emulated/0/Download/rish",
-                "/data/data/com.termux/files/usr/bin/rish",
+                "/storage/emulated/0/Documents/rish",
         };
-
-        for (String path : searchPaths) {
-            try {
-                Process p = Runtime.getRuntime().exec(new String[]{"sh", "-c",
-                        "test -x '" + path + "' && echo found || echo not"});
-                BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
-                String result = reader.readLine();
-                reader.close();
-                p.waitFor();
-                if ("found".equals(result)) {
-                    rishPath = path;
-                    Logger.d(TAG, "rish 找到: " + rishPath);
-                    return;
-                }
-            } catch (Throwable ignored) {}
+        String foundSource = null;
+        for (String path : sourcePaths) {
+            File f = new File(path);
+            if (f.exists() && f.length() > 0) {
+                foundSource = path;
+                Logger.d(TAG, "rish 源文件找到: " + path + " (" + f.length() + " bytes)");
+                break;
+            }
         }
 
-        // Try which
+        // Step 2: 复制到 app 私有目录并赋予可执行权限
+        if (foundSource != null) {
+            try {
+                File appDir = new File("/data/data/com.example.acctileman/files");
+                if (!appDir.exists()) appDir.mkdirs();
+                File rishFile = new File(appDir, "rish");
+
+                // Copy
+                FileInputStream in = new FileInputStream(foundSource);
+                FileOutputStream out = new FileOutputStream(rishFile);
+                byte[] buf = new byte[4096];
+                int len;
+                while ((len = in.read(buf)) > 0) out.write(buf, 0, len);
+                in.close();
+                out.close();
+
+                // chmod +x
+                Runtime.getRuntime().exec(new String[]{"chmod", "755", rishFile.getAbsolutePath()}).waitFor();
+
+                // Verify
+                if (rishFile.canExecute() || rishFile.length() > 0) {
+                    rishPath = rishFile.getAbsolutePath();
+                    Logger.d(TAG, "rish 已复制到 app 私有目录: " + rishPath);
+                    return;
+                }
+            } catch (Throwable t) {
+                Logger.e(TAG, "复制 rish 失败", t);
+            }
+        }
+
+        // Step 3: 检查 app 私有目录是否已有 rish
+        File appRish = new File("/data/data/com.example.acctileman/files/rish");
+        if (appRish.exists() && appRish.length() > 0) {
+            rishPath = appRish.getAbsolutePath();
+            Logger.d(TAG, "rish 在 app 私有目录已存在: " + rishPath);
+            return;
+        }
+
+        // Step 4: 尝试 which
         try {
             Process p = Runtime.getRuntime().exec(new String[]{"sh", "-c",
                     "which rish 2>/dev/null"});
