@@ -239,9 +239,20 @@ public class SettingsActivity extends Activity {
         }
         Logger.d("Settings", "日志文件: " + logFile.getAbsolutePath() + " 大小: " + logFile.length() + " bytes");
 
-        // 日志已在 app 外部目录，直接提示路径（可通过文件管理器访问）
-        Toast.makeText(this, "日志路径:\n" + logFile.getAbsolutePath()
-                + "\n(可通过文件管理器直接查看)", Toast.LENGTH_LONG).show();
+        // 通过 share intent 导出
+        try {
+            android.content.Intent shareIntent = new android.content.Intent(android.content.Intent.ACTION_SEND);
+            shareIntent.setType("text/plain");
+            android.net.Uri shareUri = LogFileProvider.getUriForFile(logFile);
+            shareIntent.putExtra(android.content.Intent.EXTRA_STREAM, shareUri);
+            shareIntent.addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            startActivity(android.content.Intent.createChooser(shareIntent, "导出日志"));
+            Logger.d("Settings", "日志分享 intent 已启动, uri=" + shareUri);
+        } catch (Throwable t) {
+            Logger.e("Settings", "分享失败，降级显示路径", t);
+            Toast.makeText(this, "日志路径:\n" + logFile.getAbsolutePath()
+                    + "\n(可通过文件管理器访问)", Toast.LENGTH_LONG).show();
+        }
     }
 
     @Override
