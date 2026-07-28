@@ -322,9 +322,12 @@ public class AppInfoHelper {
                                     item.host = "";
                                     item.uri = "component:" + component;
                                     item.activityName = currentActivity;
-                                    item.label = shortName(currentActivity);
+                                    String shortName = shortName(currentActivity);
+                                    String desc = guessActivityDescription(shortName);
+                                    item.label = desc != null ? desc : shortName;
                                     addDeepLinkIfNotExists(result, item);
-                                    Logger.d(TAG, "getDeepLinks: 添加可启动 Activity: " + component);
+                                    Logger.d(TAG, "getDeepLinks: 添加可启动 Activity: " + component
+                                            + " label=" + item.label);
                                 }
                             }
                         }
@@ -358,6 +361,49 @@ public class AppInfoHelper {
             return fullName.substring(lastDot + 1);
         }
         return fullName;
+    }
+
+    /** 根据 Activity 名称推测功能描述 */
+    private static String guessActivityDescription(String activityName) {
+        if (activityName == null) return null;
+        String lower = activityName.toLowerCase();
+        if (lower.contains("copymode") || lower.contains("copymodeactivity")) {
+            return "开始复制模式 (直接触发复制)";
+        }
+        if (lower.contains("shortcut") || lower.contains("shortcutactivity")) {
+            return "快捷方式 (桌面小组件入口)";
+        }
+        if (lower.contains("settings") || lower.contains("preference")) {
+            return "设置页面 (应用配置)";
+        }
+        if (lower.contains("faq") || lower.contains("help") || lower.contains("tutorial")) {
+            return "帮助/教程";
+        }
+        if (lower.contains("purchase") || lower.contains("billing") || lower.contains("pay")) {
+            return "购买/付费页面";
+        }
+        if (lower.contains("onboard") || lower.contains("welcome") || lower.contains("intro")) {
+            return "新手引导 (首次启动)";
+        }
+        if (lower.contains("screenshot") || lower.contains("capture")) {
+            return "截图功能";
+        }
+        if (lower.contains("scan") || lower.contains("recognize")) {
+            return "扫描/识别功能";
+        }
+        if (lower.contains("share") || lower.contains("send")) {
+            return "分享页面";
+        }
+        if (lower.contains("web") || lower.contains("browser")) {
+            return "内置浏览器";
+        }
+        if (lower.contains("login") || lower.contains("signin")) {
+            return "登录页面";
+        }
+        if (lower.contains("about")) {
+            return "关于页面";
+        }
+        return null; // 无法推测，保留原名
     }
 
     /** 安全获取 XmlResourceParser 的属性值，先尝试命名空间，再遍历所有属性兜底 */

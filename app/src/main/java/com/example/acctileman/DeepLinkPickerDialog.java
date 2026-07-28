@@ -162,8 +162,8 @@ public class DeepLinkPickerDialog {
             if (tvActivity != null) {
                 String desc = "";
                 if (item.isComponent) {
-                    // 组件类型: 显示完整组件名和类型标识
-                    desc = "[组件启动] " + item.uri.replace("component:", "");
+                    // 组件类型: 简洁提示，不重复组件名
+                    desc = "通过组件名启动";
                 } else {
                     // URI 类型: 显示 host 和 activity
                     if (item.host != null && !item.host.isEmpty()) {
