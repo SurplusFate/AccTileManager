@@ -35,7 +35,7 @@ public class DeepLinkPickerDialog {
 
         // 提示文字
         TextView tvHint = new TextView(context);
-        tvHint.setText("检测到多个 Deep Link，请选择启动页面:");
+        tvHint.setText("检测到多个可启动入口，请选择启动页面:");
         tvHint.setTextSize(14);
         tvHint.setTextColor(0xFF666666);
         tvHint.setPadding(0, 0, 0, 24);
@@ -149,16 +149,32 @@ public class DeepLinkPickerDialog {
             TextView tvActivity = view.findViewById(android.R.id.text2);
 
             if (tvUri != null) {
-                tvUri.setText(item.uri);
+                if (item.isComponent) {
+                    // 组件类型: 显示简短类名
+                    tvUri.setText(item.label != null ? item.label : item.uri);
+                    tvUri.setTextColor(0xFF00897B); // 青绿色，区分组件启动
+                } else {
+                    // URI 类型: 显示完整 URI
+                    tvUri.setText(item.uri);
+                    tvUri.setTextColor(0xFF1565C0); // 蓝色
+                }
             }
             if (tvActivity != null) {
                 String desc = "";
-                if (item.host != null && !item.host.isEmpty()) {
-                    desc = "Host: " + item.host;
-                }
-                if (item.activityName != null && !item.activityName.isEmpty()) {
-                    if (!desc.isEmpty()) desc += "  ";
-                    desc += "Activity: " + shortName(item.activityName);
+                if (item.isComponent) {
+                    // 组件类型: 显示完整组件名和类型标识
+                    desc = "[组件启动] " + item.uri.replace("component:", "");
+                } else {
+                    // URI 类型: 显示 host 和 activity
+                    if (item.host != null && !item.host.isEmpty()) {
+                        desc = "[Deep Link] Host: " + item.host;
+                    } else {
+                        desc = "[Deep Link]";
+                    }
+                    if (item.activityName != null && !item.activityName.isEmpty()) {
+                        if (!desc.isEmpty()) desc += "  ";
+                        desc += "Activity: " + shortName(item.activityName);
+                    }
                 }
                 tvActivity.setText(desc.isEmpty() ? "(无额外信息)" : desc);
             }

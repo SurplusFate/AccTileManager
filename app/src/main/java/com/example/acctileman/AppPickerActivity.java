@@ -174,9 +174,9 @@ public class AppPickerActivity extends Activity {
                     @Override
                     public void run() {
                         if (links.isEmpty()) {
-                            // 没有 Deep Link，提示用户后返回
+                            // 没有可启动入口，提示用户后返回
                             Toast.makeText(AppPickerActivity.this,
-                                    item.appName + " 未检测到 Deep Link\n已自动填入包名和服务",
+                                    item.appName + " 未检测到可启动入口\n已自动填入包名和服务",
                                     Toast.LENGTH_SHORT).show();
                             returnResult(item.packageName, serviceComponent, item.appName, "");
                             return;

@@ -157,7 +157,11 @@ public class ShellHelper {
         }
     }
 
-    /** 通过 Deep Link URI 启动 app 的特定功能页面 */
+    /** 通过 Deep Link URI 或组件名启动 app 的特定功能页面
+     *  支持两种格式:
+     *  1. URI: taobao://item.taobao.com (通过 Intent.ACTION_VIEW)
+     *  2. 组件名: component:com.pkg/.Activity (通过 setComponent)
+     */
     public static void launchDeepLink(String uri) {
         Logger.d(TAG, "launchDeepLink: " + uri);
         if (appContext == null) return;
@@ -166,12 +170,49 @@ public class ShellHelper {
             return;
         }
         try {
-            Intent intent = new Intent(Intent.ACTION_VIEW, android.net.Uri.parse(uri));
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            appContext.startActivity(intent);
-            Logger.d(TAG, "launchDeepLink: 已启动 " + uri);
+            if (uri.startsWith("component:")) {
+                // 组件名启动: component:com.pkg/.Activity
+                String component = uri.substring("component:".length());
+                Logger.d(TAG, "launchDeepLink: 组件启动 " + component);
+                Intent intent = new Intent();
+                String[] parts = component.split("/", 2);
+                if (parts.length == 2) {
+                    String pkg = parts[0];
+                    String cls = parts[1];
+                    // 还原完整类名
+                    if (cls.startsWith(".")) {
+                        cls = pkg + cls;
+                    }
+                    intent.setComponent(new android.content.ComponentName(pkg, cls));
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    appContext.startActivity(intent);
+                    Logger.d(TAG, "launchDeepLink: 已通过组件启动 " + component);
+                } else {
+                    Logger.e(TAG, "launchDeepLink: 组件名格式错误: " + component);
+                }
+            } else {
+                // URI 启动: taobao://...
+                Intent intent = new Intent(Intent.ACTION_VIEW, android.net.Uri.parse(uri));
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                appContext.startActivity(intent);
+                Logger.d(TAG, "launchDeepLink: 已通过 URI 启动 " + uri);
+            }
         } catch (Throwable t) {
             Logger.e(TAG, "launchDeepLink 失败: " + uri, t);
+            // 组件启动失败时，尝试用 am start 命令
+            if (uri.startsWith("component:")) {
+                String component = uri.substring("component:".length());
+                Logger.d(TAG, "launchDeepLink: 尝试 am start -n " + component);
+                try {
+                    Process p = Runtime.getRuntime().exec(new String[]{
+                            "am", "start", "-n", component
+                    });
+                    drainAndWait(p, "am start");
+                    Logger.d(TAG, "launchDeepLink: am start 完成");
+                } catch (Throwable t2) {
+                    Logger.e(TAG, "launchDeepLink: am start 也失败", t2);
+                }
+            }
         }
     }
 

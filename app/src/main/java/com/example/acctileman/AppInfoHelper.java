@@ -52,9 +52,9 @@ public class AppInfoHelper {
      * 表示一个 Deep Link（URI/Intent）。
      */
     public static class DeepLinkItem {
-        /** 完整 URI，如 taobao://item.taobao.com/item.html?id=123 */
+        /** 完整 URI，如 taobao://item.taobao.com/item.html?id=123 或 component:com.pkg/.Activity */
         public String uri;
-        /** scheme，如 taobao */
+        /** scheme，如 taobao；组件启动时为 "component" */
         public String scheme;
         /** host，如 item.taobao.com */
         public String host;
@@ -62,6 +62,8 @@ public class AppInfoHelper {
         public String activityName;
         /** 显示用的简短描述 */
         public String label;
+        /** true 表示通过组件名启动（am start -n），false 表示通过 URI 启动 */
+        public boolean isComponent;
     }
 
     /** 获取所有已安装的第三方应用（排除系统应用），按名称排序 */
@@ -192,9 +194,11 @@ public class AppInfoHelper {
     }
 
     /**
-     * 获取指定 APP 声明的所有 Deep Link（URI scheme）。
-     * 直接解析 APK 的 AndroidManifest.xml，提取所有 <data android:scheme="..."/> 声明。
-     * 不需要特权，不依赖 intent 匹配。
+     * 获取指定 APP 的所有可启动入口。
+     * 包括两类:
+     * 1. URI Deep Link: <data android:scheme="..."/> 声明（如 taobao://）
+     * 2. 可启动 Activity: exported=true 且有 intent-filter 的 Activity（通过组件名启动）
+     * 直接解析 APK 的 AndroidManifest.xml，不需要特权。
      */
     public static List<DeepLinkItem> getDeepLinks(Context ctx, String packageName) {
         Logger.d(TAG, "getDeepLinks: " + packageName);
@@ -202,14 +206,21 @@ public class AppInfoHelper {
         PackageManager pm = ctx.getPackageManager();
 
         try {
-            // 获取目标 APP 的资源，通过 XmlResourceParser 解析 AndroidManifest.xml
             android.content.res.Resources res = pm.getResourcesForApplication(packageName);
             XmlResourceParser parser = res.getAssets().openXmlResourceParser("AndroidManifest.xml");
 
             String androidNs = "http://schemas.android.com/apk/res/android";
             boolean inIntentFilter = false;
             boolean hasViewAction = false;
+            boolean hasMainAction = false;
+            boolean hasLauncherCategory = false;
+            boolean hasAnyAction = false;
+            boolean hasDataScheme = false;
             String currentActivity = "";
+            String currentActivityExported = "";
+            // 记录当前 intent-filter 中的所有 data scheme
+            java.util.List<String> filterSchemes = new ArrayList<>();
+            java.util.List<String> filterHosts = new ArrayList<>();
 
             int eventType = parser.getEventType();
             while (eventType != XmlResourceParser.END_DOCUMENT) {
@@ -218,44 +229,114 @@ public class AppInfoHelper {
 
                     if ("activity".equals(tag) || "activity-alias".equals(tag)) {
                         currentActivity = getAttr(parser, androidNs, "name");
-                        Logger.d(TAG, "getDeepLinks: activity=" + currentActivity);
+                        currentActivityExported = getAttr(parser, androidNs, "exported");
+                        Logger.d(TAG, "getDeepLinks: activity=" + currentActivity
+                                + " exported=" + currentActivityExported);
                     } else if ("intent-filter".equals(tag)) {
                         inIntentFilter = true;
                         hasViewAction = false;
+                        hasMainAction = false;
+                        hasLauncherCategory = false;
+                        hasAnyAction = false;
+                        hasDataScheme = false;
+                        filterSchemes.clear();
+                        filterHosts.clear();
                     } else if (inIntentFilter && "action".equals(tag)) {
                         String actionName = getAttr(parser, androidNs, "name");
+                        hasAnyAction = true;
                         if ("android.intent.action.VIEW".equals(actionName)) {
                             hasViewAction = true;
-                            Logger.d(TAG, "getDeepLinks: 发现 VIEW action");
+                            Logger.d(TAG, "getDeepLinks: 发现 VIEW action in " + currentActivity);
+                        } else if ("android.intent.action.MAIN".equals(actionName)) {
+                            hasMainAction = true;
+                        }
+                    } else if (inIntentFilter && "category".equals(tag)) {
+                        String catName = getAttr(parser, androidNs, "name");
+                        if ("android.intent.category.LAUNCHER".equals(catName)) {
+                            hasLauncherCategory = true;
                         }
                     } else if (inIntentFilter && hasViewAction && "data".equals(tag)) {
                         String scheme = getAttr(parser, androidNs, "scheme");
                         String host = getAttr(parser, androidNs, "host");
                         Logger.d(TAG, "getDeepLinks: data tag scheme=" + scheme + " host=" + host);
                         if (scheme != null && !scheme.isEmpty()) {
-                            // 排除系统内置 scheme 和过于通用的 http/https
-                            if (!scheme.equals("content") && !scheme.equals("file")
-                                    && !scheme.equals("package")
-                                    && !scheme.equals("http") && !scheme.equals("https")) {
-                                DeepLinkItem item = new DeepLinkItem();
-                                item.scheme = scheme;
-                                item.host = host != null ? host : "";
-                                item.uri = (host != null && !host.isEmpty())
-                                        ? scheme + "://" + host
-                                        : scheme + "://";
-                                item.activityName = currentActivity != null ? currentActivity : "";
-                                item.label = item.uri;
-                                addDeepLinkIfNotExists(result, item);
-                                Logger.d(TAG, "getDeepLinks: 发现 scheme=" + scheme
-                                        + " host=" + host + " activity=" + currentActivity);
-                            }
+                            hasDataScheme = true;
+                            filterSchemes.add(scheme);
+                            filterHosts.add(host != null ? host : "");
                         }
                     }
                 } else if (eventType == XmlResourceParser.END_TAG) {
                     String tag = parser.getName();
                     if ("intent-filter".equals(tag)) {
+                        // 处理 URI Deep Link
+                        if (hasViewAction && hasDataScheme) {
+                            for (int i = 0; i < filterSchemes.size(); i++) {
+                                String scheme = filterSchemes.get(i);
+                                String host = filterHosts.get(i);
+                                // 排除系统内置和通用 scheme
+                                if (!scheme.equals("content") && !scheme.equals("file")
+                                        && !scheme.equals("package")
+                                        && !scheme.equals("http") && !scheme.equals("https")) {
+                                    DeepLinkItem item = new DeepLinkItem();
+                                    item.isComponent = false;
+                                    item.scheme = scheme;
+                                    item.host = host;
+                                    item.uri = (host != null && !host.isEmpty())
+                                            ? scheme + "://" + host
+                                            : scheme + "://";
+                                    item.activityName = currentActivity != null ? currentActivity : "";
+                                    item.label = item.uri;
+                                    addDeepLinkIfNotExists(result, item);
+                                    Logger.d(TAG, "getDeepLinks: 添加 URI Deep Link: " + item.uri
+                                            + " activity=" + currentActivity);
+                                }
+                            }
+                        }
+
+                        // 处理可启动 Activity（非 LAUNCHER 的 exported Activity）
+                        boolean isLauncher = hasMainAction && hasLauncherCategory;
+                        boolean isExported = currentActivityExported == null
+                                || currentActivityExported.isEmpty()
+                                || currentActivityExported.equals("true");
+                        // 有 intent-filter 的 activity 默认 exported=true（Android 12 以下）
+                        if (hasAnyAction && !isLauncher && isExported
+                                && currentActivity != null && !currentActivity.isEmpty()) {
+                            // 排除系统/GMS Activity
+                            if (!currentActivity.startsWith("com.google.android.gms")
+                                    && !currentActivity.startsWith("com.android")) {
+                                // 构造组件名
+                                String component = flattenComponent(packageName, currentActivity);
+                                // 检查是否已经因为 URI Deep Link 添加过该 Activity
+                                boolean alreadyAdded = false;
+                                for (DeepLinkItem existing : result) {
+                                    if (currentActivity.equals(existing.activityName)
+                                            && !existing.isComponent) {
+                                        alreadyAdded = true;
+                                        break;
+                                    }
+                                }
+                                if (!alreadyAdded) {
+                                    DeepLinkItem item = new DeepLinkItem();
+                                    item.isComponent = true;
+                                    item.scheme = "component";
+                                    item.host = "";
+                                    item.uri = "component:" + component;
+                                    item.activityName = currentActivity;
+                                    item.label = shortName(currentActivity);
+                                    addDeepLinkIfNotExists(result, item);
+                                    Logger.d(TAG, "getDeepLinks: 添加可启动 Activity: " + component);
+                                }
+                            }
+                        }
+
                         inIntentFilter = false;
                         hasViewAction = false;
+                        hasMainAction = false;
+                        hasLauncherCategory = false;
+                        hasAnyAction = false;
+                        hasDataScheme = false;
+                        filterSchemes.clear();
+                        filterHosts.clear();
                     }
                 }
                 eventType = parser.next();
@@ -265,8 +346,18 @@ public class AppInfoHelper {
             Logger.e(TAG, "getDeepLinks: 解析 AndroidManifest.xml 失败", t);
         }
 
-        Logger.d(TAG, "getDeepLinks: " + packageName + " 找到 " + result.size() + " 个 Deep Link");
+        Logger.d(TAG, "getDeepLinks: " + packageName + " 找到 " + result.size() + " 个入口");
         return result;
+    }
+
+    /** 取类名的最后一部分 */
+    private static String shortName(String fullName) {
+        if (fullName == null) return "";
+        int lastDot = fullName.lastIndexOf('.');
+        if (lastDot >= 0 && lastDot + 1 < fullName.length()) {
+            return fullName.substring(lastDot + 1);
+        }
+        return fullName;
     }
 
     /** 安全获取 XmlResourceParser 的属性值，先尝试命名空间，再遍历所有属性兜底 */
