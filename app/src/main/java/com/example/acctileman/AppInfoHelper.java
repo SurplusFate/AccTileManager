@@ -217,22 +217,26 @@ public class AppInfoHelper {
                     String tag = parser.getName();
 
                     if ("activity".equals(tag) || "activity-alias".equals(tag)) {
-                        currentActivity = parser.getAttributeValue(androidNs, "name");
+                        currentActivity = getAttr(parser, androidNs, "name");
+                        Logger.d(TAG, "getDeepLinks: activity=" + currentActivity);
                     } else if ("intent-filter".equals(tag)) {
                         inIntentFilter = true;
                         hasViewAction = false;
                     } else if (inIntentFilter && "action".equals(tag)) {
-                        String actionName = parser.getAttributeValue(androidNs, "name");
+                        String actionName = getAttr(parser, androidNs, "name");
                         if ("android.intent.action.VIEW".equals(actionName)) {
                             hasViewAction = true;
+                            Logger.d(TAG, "getDeepLinks: 发现 VIEW action");
                         }
                     } else if (inIntentFilter && hasViewAction && "data".equals(tag)) {
-                        String scheme = parser.getAttributeValue(androidNs, "scheme");
-                        String host = parser.getAttributeValue(androidNs, "host");
+                        String scheme = getAttr(parser, androidNs, "scheme");
+                        String host = getAttr(parser, androidNs, "host");
+                        Logger.d(TAG, "getDeepLinks: data tag scheme=" + scheme + " host=" + host);
                         if (scheme != null && !scheme.isEmpty()) {
-                            // 排除系统内置 scheme
+                            // 排除系统内置 scheme 和过于通用的 http/https
                             if (!scheme.equals("content") && !scheme.equals("file")
-                                    && !scheme.equals("package")) {
+                                    && !scheme.equals("package")
+                                    && !scheme.equals("http") && !scheme.equals("https")) {
                                 DeepLinkItem item = new DeepLinkItem();
                                 item.scheme = scheme;
                                 item.host = host != null ? host : "";
@@ -263,6 +267,32 @@ public class AppInfoHelper {
 
         Logger.d(TAG, "getDeepLinks: " + packageName + " 找到 " + result.size() + " 个 Deep Link");
         return result;
+    }
+
+    /** 安全获取 XmlResourceParser 的属性值，先尝试命名空间，再遍历所有属性兜底 */
+    private static String getAttr(XmlResourceParser parser, String ns, String name) {
+        String val = parser.getAttributeValue(ns, name);
+        if (val == null) {
+            val = parser.getAttributeValue(null, name);
+        }
+        if (val == null) {
+            val = parser.getAttributeValue(ns, "android:" + name);
+        }
+        if (val == null) {
+            val = parser.getAttributeValue(null, "android:" + name);
+        }
+        // 兜底：编译后的 AXML 属性名可能不是字符串，遍历所有属性
+        if (val == null) {
+            int count = parser.getAttributeCount();
+            for (int i = 0; i < count; i++) {
+                String attrName = parser.getAttributeName(i);
+                if (name.equals(attrName) || ("android:" + name).equals(attrName)) {
+                    val = parser.getAttributeValue(i);
+                    break;
+                }
+            }
+        }
+        return val;
     }
 
     private static void addDeepLinkIfNotExists(List<DeepLinkItem> list, DeepLinkItem item) {
