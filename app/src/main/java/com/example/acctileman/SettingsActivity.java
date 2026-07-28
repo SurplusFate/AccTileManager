@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.view.View;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
@@ -206,16 +207,26 @@ public class SettingsActivity extends Activity {
 
     private void updatePermissionStatus() {
         TextView tvStatus = findViewById(R.id.tv_shizuku_status);
+        View dot = findViewById(R.id.v_status_dot);
         if (tvStatus != null) {
+            int color;
+            String text;
             boolean hasPermission = ShizukuHelper.checkSelfPermission();
             if (hasPermission) {
-                tvStatus.setText("权限状态: 已授权 (可正常使用)");
-                tvStatus.setTextColor(0xFF4CAF50);
+                text = "权限状态: 已授权 (可正常使用)";
+                color = 0xFF4CAF50;
                 Logger.d("Settings", "updatePermissionStatus: 已授权");
             } else {
-                tvStatus.setText("权限状态: 未授权 (点击下方按钮授权)");
-                tvStatus.setTextColor(0xFFF44336);
+                text = "权限状态: 未授权 (点击下方按钮授权)";
+                color = 0xFFF44336;
                 Logger.d("Settings", "updatePermissionStatus: 未授权");
+            }
+            tvStatus.setText(text);
+            tvStatus.setTextColor(color);
+            if (dot != null) {
+                android.graphics.drawable.GradientDrawable dotBg =
+                        (android.graphics.drawable.GradientDrawable) dot.getBackground().mutate();
+                dotBg.setColor(color);
             }
         }
     }

@@ -2,38 +2,51 @@
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="16dp">
+    android:background="@color/bgPage"
+    android:padding="12dp">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:gravity="center_horizontal">
+        android:orientation="vertical">
 
-        <!-- Header -->
+        <!-- ==================== Header ==================== -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="2dp"
             android:text="无障碍磁贴管理器"
+            android:textColor="@color/textPrimary"
             android:textSize="22sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="4dp" />
+            android:textStyle="bold" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="配置磁贴 → 下拉通知栏添加 → 一键开关无障碍权限"
-            android:textSize="13sp"
-            android:textColor="#888888"
-            android:layout_marginBottom="12dp" />
+            android:layout_gravity="center_horizontal"
+            android:layout_marginBottom="14dp"
+            android:text="配置磁贴 · 添加开关 · 一键控制"
+            android:textColor="@color/textSecondary"
+            android:textSize="13sp" />
 
-        <!-- Shizuku Status -->
+        <!-- ==================== Shizuku 状态卡片 ==================== -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
+            android:layout_marginBottom="10dp"
+            android:background="@drawable/bg_card"
             android:gravity="center_vertical"
-            android:layout_marginBottom="8dp">
+            android:orientation="horizontal"
+            android:padding="14dp">
+
+            <View
+                android:id="@+id/v_status_dot"
+                android:layout_width="10dp"
+                android:layout_height="10dp"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/bg_dot" />
 
             <TextView
                 android:id="@+id/tv_shizuku_status"
@@ -41,104 +54,510 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="Shizuku 权限: 检查中..."
+                android:textColor="@color/textSecondary"
                 android:textSize="14sp" />
 
             <Button
                 android:id="@+id/btn_request_shizuku"
                 android:layout_width="wrap_content"
-                android:layout_height="40dp"
+                android:layout_height="38dp"
+                android:background="@drawable/bg_button_primary"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
                 android:text="授予权限"
-                android:textSize="12sp" />
+                android:textColor="#FFFFFF"
+                android:textSize="13sp" />
         </LinearLayout>
 
-        <Button
-            android:id="@+id/btn_show_services"
-            android:layout_width="match_parent"
-            android:layout_height="40dp"
-            android:text="查看当前无障碍服务列表"
-            android:textSize="12sp"
-            android:layout_marginBottom="6dp" />
-
+        <!-- ==================== 工具按钮卡片 ==================== -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="16dp">
+            android:layout_marginBottom="10dp"
+            android:background="@drawable/bg_card"
+            android:orientation="vertical"
+            android:padding="12dp">
 
             <Button
-                android:id="@+id/btn_export_log"
-                android:layout_width="0dp"
-                android:layout_height="40dp"
-                android:layout_weight="1"
-                android:text="导出日志"
-                android:textSize="12sp"
-                android:layout_marginEnd="4dp" />
+                android:id="@+id/btn_show_services"
+                android:layout_width="match_parent"
+                android:layout_height="42dp"
+                android:layout_marginBottom="8dp"
+                android:background="@drawable/bg_button_outline"
+                android:text="查看当前无障碍服务列表"
+                android:textColor="@color/primary"
+                android:textSize="13sp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/btn_export_log"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_marginEnd="6dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_button_outline"
+                    android:text="导出日志"
+                    android:textColor="@color/textSecondary"
+                    android:textSize="13sp" />
+
+                <Button
+                    android:id="@+id/btn_clear_log"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_marginStart="6dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_button_outline"
+                    android:text="清空日志"
+                    android:textColor="@color/textSecondary"
+                    android:textSize="13sp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- ==================== 磁贴 1 ==================== -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="10dp"
+            android:background="@drawable/bg_card"
+            android:orientation="vertical"
+            android:padding="14dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="10dp"
+                android:text="磁贴 1"
+                android:textColor="@color/textPrimary"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <EditText
+                android:id="@+id/et_label_0"
+                android:layout_width="match_parent"
+                android:layout_height="46dp"
+                android:layout_marginBottom="6dp"
+                android:background="@drawable/bg_input"
+                android:hint="磁贴显示名称（如: 全局复制）"
+                android:inputType="text"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:singleLine="true"
+                android:textColor="@color/textPrimary"
+                android:textColorHint="@color/textHint"
+                android:textSize="14sp" />
 
             <Button
-                android:id="@+id/btn_clear_log"
-                android:layout_width="0dp"
+                android:id="@+id/btn_pick_app_0"
+                android:layout_width="match_parent"
                 android:layout_height="40dp"
-                android:layout_weight="1"
-                android:text="清空日志"
-                android:textSize="12sp"
-                android:layout_marginStart="4dp" />
+                android:layout_marginBottom="6dp"
+                android:background="@drawable/bg_button_outline"
+                android:text="从应用列表选择（自动填入包名、服务、Deep Link）"
+                android:textColor="@color/primary"
+                android:textSize="12sp" />
+
+            <EditText
+                android:id="@+id/et_service_0"
+                android:layout_width="match_parent"
+                android:layout_height="46dp"
+                android:layout_marginBottom="6dp"
+                android:background="@drawable/bg_input"
+                android:hint="组件名: 包名/完整服务类名, 如 a.b/.x.Y"
+                android:inputType="text"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:singleLine="true"
+                android:textColor="@color/textPrimary"
+                android:textColorHint="@color/textHint"
+                android:textSize="13sp" />
+
+            <EditText
+                android:id="@+id/et_app_0"
+                android:layout_width="match_parent"
+                android:layout_height="46dp"
+                android:layout_marginBottom="6dp"
+                android:background="@drawable/bg_input"
+                android:hint="App 包名（可选，开启时自动启动）"
+                android:inputType="text"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:singleLine="true"
+                android:textColor="@color/textPrimary"
+                android:textColorHint="@color/textHint"
+                android:textSize="13sp" />
+
+            <EditText
+                android:id="@+id/et_deeplink_0"
+                android:layout_width="match_parent"
+                android:layout_height="46dp"
+                android:layout_marginBottom="8dp"
+                android:background="@drawable/bg_input"
+                android:hint="Deep Link（可选，启动特定功能页面，如 taobao://）"
+                android:inputType="text"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:singleLine="true"
+                android:textColor="@color/textPrimary"
+                android:textColorHint="@color/textHint"
+                android:textSize="13sp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="10dp"
+                android:orientation="horizontal">
+
+                <CheckBox
+                    android:id="@+id/cb_launch_0"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:checked="true"
+                    android:text="开启时启动App"
+                    android:textColor="@color/textPrimary"
+                    android:textSize="13sp" />
+
+                <CheckBox
+                    android:id="@+id/cb_stop_0"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:checked="true"
+                    android:text="关闭时停止App"
+                    android:textColor="@color/textPrimary"
+                    android:textSize="13sp" />
+            </LinearLayout>
+
+            <Button
+                android:id="@+id/btn_save_0"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:background="@drawable/bg_button_primary"
+                android:text="保存配置"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp" />
         </LinearLayout>
 
-        <!-- ===== Slot 0 ===== -->
-        <TextView
+        <!-- ==================== 磁贴 2 ==================== -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="━━━ 磁贴 1 ━━━"
-            android:textSize="14sp"
-            android:textStyle="bold"
-            android:gravity="center"
-            android:layout_marginTop="8dp"
-            android:layout_marginBottom="8dp" />
-        <EditText android:id="@+id/et_label_0" android:layout_width="match_parent" android:layout_height="44dp" android:hint="磁贴显示名称 (如: 全局复制)" android:textSize="14sp" android:inputType="text" android:singleLine="true" android:layout_marginBottom="6dp"/>
-        <Button android:id="@+id/btn_pick_app_0" android:layout_width="match_parent" android:layout_height="40dp" android:text="🔍 从应用列表选择 (自动填入包名、服务、Deep Link)" android:textSize="12sp" android:layout_marginBottom="6dp"/>
-        <EditText android:id="@+id/et_service_0" android:layout_width="match_parent" android:layout_height="44dp" android:hint="组件名: 包名/完整服务类名, 如 a.b/.x.Y" android:textSize="13sp" android:inputType="text" android:singleLine="true" android:layout_marginBottom="6dp"/>
-        <EditText android:id="@+id/et_app_0" android:layout_width="match_parent" android:layout_height="44dp" android:hint="App 包名 (可选，开启时自动启动)" android:textSize="13sp" android:inputType="text" android:singleLine="true" android:layout_marginBottom="6dp"/>
-        <EditText android:id="@+id/et_deeplink_0" android:layout_width="match_parent" android:layout_height="44dp" android:hint="Deep Link (可选，启动特定功能页面，如 taobao://)" android:textSize="13sp" android:inputType="text" android:singleLine="true" android:layout_marginBottom="6dp"/>
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginBottom="8dp">
-            <CheckBox android:id="@+id/cb_launch_0" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="开启时启动App" android:textSize="13sp" android:checked="true"/>
-            <CheckBox android:id="@+id/cb_stop_0" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="关闭时停止App" android:textSize="13sp" android:checked="true"/>
-        </LinearLayout>
-        <Button android:id="@+id/btn_save_0" android:layout_width="match_parent" android:layout_height="42dp" android:text="保存配置" android:textSize="13sp" />
+            android:layout_marginBottom="10dp"
+            android:background="@drawable/bg_card"
+            android:orientation="vertical"
+            android:padding="14dp">
 
-        <!-- ===== Slot 1 ===== -->
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="━━━ 磁贴 2 ━━━" android:textSize="14sp" android:textStyle="bold" android:gravity="center" android:layout_marginTop="16dp" android:layout_marginBottom="8dp"/>
-        <EditText android:id="@+id/et_label_1" android:layout_width="match_parent" android:layout_height="44dp" android:hint="磁贴显示名称" android:textSize="14sp" android:inputType="text" android:singleLine="true" android:layout_marginBottom="6dp"/>
-        <Button android:id="@+id/btn_pick_app_1" android:layout_width="match_parent" android:layout_height="40dp" android:text="🔍 从应用列表选择 (自动填入包名、服务、Deep Link)" android:textSize="12sp" android:layout_marginBottom="6dp"/>
-        <EditText android:id="@+id/et_service_1" android:layout_width="match_parent" android:layout_height="44dp" android:hint="组件名: 包名/完整服务类名, 如 a.b/.x.Y" android:textSize="13sp" android:inputType="text" android:singleLine="true" android:layout_marginBottom="6dp"/>
-        <EditText android:id="@+id/et_app_1" android:layout_width="match_parent" android:layout_height="44dp" android:hint="App 包名 (可选)" android:textSize="13sp" android:inputType="text" android:singleLine="true" android:layout_marginBottom="6dp"/>
-        <EditText android:id="@+id/et_deeplink_1" android:layout_width="match_parent" android:layout_height="44dp" android:hint="Deep Link (可选，启动特定功能页面)" android:textSize="13sp" android:inputType="text" android:singleLine="true" android:layout_marginBottom="6dp"/>
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginBottom="8dp">
-            <CheckBox android:id="@+id/cb_launch_1" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="开启时启动App" android:textSize="13sp" android:checked="true"/>
-            <CheckBox android:id="@+id/cb_stop_1" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="关闭时停止App" android:textSize="13sp" android:checked="true"/>
-        </LinearLayout>
-        <Button android:id="@+id/btn_save_1" android:layout_width="match_parent" android:layout_height="42dp" android:text="保存配置" android:textSize="13sp" />
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="10dp"
+                android:text="磁贴 2"
+                android:textColor="@color/textPrimary"
+                android:textSize="16sp"
+                android:textStyle="bold" />
 
-        <!-- ===== Slot 2 ===== -->
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="━━━ 磁贴 3 ━━━" android:textSize="14sp" android:textStyle="bold" android:gravity="center" android:layout_marginTop="16dp" android:layout_marginBottom="8dp"/>
-        <EditText android:id="@+id/et_label_2" android:layout_width="match_parent" android:layout_height="44dp" android:hint="磁贴显示名称" android:textSize="14sp" android:inputType="text" android:singleLine="true" android:layout_marginBottom="6dp"/>
-        <Button android:id="@+id/btn_pick_app_2" android:layout_width="match_parent" android:layout_height="40dp" android:text="🔍 从应用列表选择 (自动填入包名、服务、Deep Link)" android:textSize="12sp" android:layout_marginBottom="6dp"/>
-        <EditText android:id="@+id/et_service_2" android:layout_width="match_parent" android:layout_height="44dp" android:hint="组件名: 包名/完整服务类名, 如 a.b/.x.Y" android:textSize="13sp" android:inputType="text" android:singleLine="true" android:layout_marginBottom="6dp"/>
-        <EditText android:id="@+id/et_app_2" android:layout_width="match_parent" android:layout_height="44dp" android:hint="App 包名 (可选)" android:textSize="13sp" android:inputType="text" android:singleLine="true" android:layout_marginBottom="6dp"/>
-        <EditText android:id="@+id/et_deeplink_2" android:layout_width="match_parent" android:layout_height="44dp" android:hint="Deep Link (可选，启动特定功能页面)" android:textSize="13sp" android:inputType="text" android:singleLine="true" android:layout_marginBottom="6dp"/>
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginBottom="8dp">
-            <CheckBox android:id="@+id/cb_launch_2" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="开启时启动App" android:textSize="13sp" android:checked="true"/>
-            <CheckBox android:id="@+id/cb_stop_2" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="关闭时停止App" android:textSize="13sp" android:checked="true"/>
-        </LinearLayout>
-        <Button android:id="@+id/btn_save_2" android:layout_width="match_parent" android:layout_height="42dp" android:text="保存配置" android:textSize="13sp" />
+            <EditText
+                android:id="@+id/et_label_1"
+                android:layout_width="match_parent"
+                android:layout_height="46dp"
+                android:layout_marginBottom="6dp"
+                android:background="@drawable/bg_input"
+                android:hint="磁贴显示名称"
+                android:inputType="text"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:singleLine="true"
+                android:textColor="@color/textPrimary"
+                android:textColorHint="@color/textHint"
+                android:textSize="14sp" />
 
-        <!-- Help -->
-        <TextView
+            <Button
+                android:id="@+id/btn_pick_app_1"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:layout_marginBottom="6dp"
+                android:background="@drawable/bg_button_outline"
+                android:text="从应用列表选择（自动填入包名、服务、Deep Link）"
+                android:textColor="@color/primary"
+                android:textSize="12sp" />
+
+            <EditText
+                android:id="@+id/et_service_1"
+                android:layout_width="match_parent"
+                android:layout_height="46dp"
+                android:layout_marginBottom="6dp"
+                android:background="@drawable/bg_input"
+                android:hint="组件名: 包名/完整服务类名, 如 a.b/.x.Y"
+                android:inputType="text"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:singleLine="true"
+                android:textColor="@color/textPrimary"
+                android:textColorHint="@color/textHint"
+                android:textSize="13sp" />
+
+            <EditText
+                android:id="@+id/et_app_1"
+                android:layout_width="match_parent"
+                android:layout_height="46dp"
+                android:layout_marginBottom="6dp"
+                android:background="@drawable/bg_input"
+                android:hint="App 包名（可选）"
+                android:inputType="text"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:singleLine="true"
+                android:textColor="@color/textPrimary"
+                android:textColorHint="@color/textHint"
+                android:textSize="13sp" />
+
+            <EditText
+                android:id="@+id/et_deeplink_1"
+                android:layout_width="match_parent"
+                android:layout_height="46dp"
+                android:layout_marginBottom="8dp"
+                android:background="@drawable/bg_input"
+                android:hint="Deep Link（可选，启动特定功能页面）"
+                android:inputType="text"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:singleLine="true"
+                android:textColor="@color/textPrimary"
+                android:textColorHint="@color/textHint"
+                android:textSize="13sp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="10dp"
+                android:orientation="horizontal">
+
+                <CheckBox
+                    android:id="@+id/cb_launch_1"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:checked="true"
+                    android:text="开启时启动App"
+                    android:textColor="@color/textPrimary"
+                    android:textSize="13sp" />
+
+                <CheckBox
+                    android:id="@+id/cb_stop_1"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:checked="true"
+                    android:text="关闭时停止App"
+                    android:textColor="@color/textPrimary"
+                    android:textSize="13sp" />
+            </LinearLayout>
+
+            <Button
+                android:id="@+id/btn_save_1"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:background="@drawable/bg_button_primary"
+                android:text="保存配置"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp" />
+        </LinearLayout>
+
+        <!-- ==================== 磁贴 3 ==================== -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:textSize="12sp"
-            android:textColor="#999999"
-            android:text="使用说明:\n1. 点击「授予权限」，通过 adb 或 Shizuku 授权\n   命令: pm grant com.example.acctileman android.permission.WRITE_SECURE_SETTINGS\n2. 授权成功后状态变为绿色「已授权」\n3. ★推荐: 点击「从应用列表选择」自动读取包名和服务名\n   选择应用后自动填入，多个服务/Deep Link 会弹窗让你选\n4. Deep Link (可选): 填入后开启磁贴会启动特定功能页面\n   如 taobao://  alipays://  等\n5. 也可手动填写无障碍服务组件名（格式: 包名/服务类名）\n6. 保存后，下拉通知栏 → 编辑快捷开关 → 添加「无障碍 N」\n7. 点击磁贴即可一键开启/关闭无障碍权限" />
+            android:layout_marginBottom="10dp"
+            android:background="@drawable/bg_card"
+            android:orientation="vertical"
+            android:padding="14dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="10dp"
+                android:text="磁贴 3"
+                android:textColor="@color/textPrimary"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <EditText
+                android:id="@+id/et_label_2"
+                android:layout_width="match_parent"
+                android:layout_height="46dp"
+                android:layout_marginBottom="6dp"
+                android:background="@drawable/bg_input"
+                android:hint="磁贴显示名称"
+                android:inputType="text"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:singleLine="true"
+                android:textColor="@color/textPrimary"
+                android:textColorHint="@color/textHint"
+                android:textSize="14sp" />
+
+            <Button
+                android:id="@+id/btn_pick_app_2"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:layout_marginBottom="6dp"
+                android:background="@drawable/bg_button_outline"
+                android:text="从应用列表选择（自动填入包名、服务、Deep Link）"
+                android:textColor="@color/primary"
+                android:textSize="12sp" />
+
+            <EditText
+                android:id="@+id/et_service_2"
+                android:layout_width="match_parent"
+                android:layout_height="46dp"
+                android:layout_marginBottom="6dp"
+                android:background="@drawable/bg_input"
+                android:hint="组件名: 包名/完整服务类名, 如 a.b/.x.Y"
+                android:inputType="text"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:singleLine="true"
+                android:textColor="@color/textPrimary"
+                android:textColorHint="@color/textHint"
+                android:textSize="13sp" />
+
+            <EditText
+                android:id="@+id/et_app_2"
+                android:layout_width="match_parent"
+                android:layout_height="46dp"
+                android:layout_marginBottom="6dp"
+                android:background="@drawable/bg_input"
+                android:hint="App 包名（可选）"
+                android:inputType="text"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:singleLine="true"
+                android:textColor="@color/textPrimary"
+                android:textColorHint="@color/textHint"
+                android:textSize="13sp" />
+
+            <EditText
+                android:id="@+id/et_deeplink_2"
+                android:layout_width="match_parent"
+                android:layout_height="46dp"
+                android:layout_marginBottom="8dp"
+                android:background="@drawable/bg_input"
+                android:hint="Deep Link（可选，启动特定功能页面）"
+                android:inputType="text"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:singleLine="true"
+                android:textColor="@color/textPrimary"
+                android:textColorHint="@color/textHint"
+                android:textSize="13sp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="10dp"
+                android:orientation="horizontal">
+
+                <CheckBox
+                    android:id="@+id/cb_launch_2"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:checked="true"
+                    android:text="开启时启动App"
+                    android:textColor="@color/textPrimary"
+                    android:textSize="13sp" />
+
+                <CheckBox
+                    android:id="@+id/cb_stop_2"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:checked="true"
+                    android:text="关闭时停止App"
+                    android:textColor="@color/textPrimary"
+                    android:textSize="13sp" />
+            </LinearLayout>
+
+            <Button
+                android:id="@+id/btn_save_2"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:background="@drawable/bg_button_primary"
+                android:text="保存配置"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp" />
+        </LinearLayout>
+
+        <!-- ==================== 使用说明卡片 ==================== -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_card"
+            android:orientation="vertical"
+            android:padding="14dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="6dp"
+                android:text="使用说明"
+                android:textColor="@color/textPrimary"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:lineSpacingExtra="3dp"
+                android:text="1. 点击「授予权限」通过 adb 或 Shizuku 授权"
+                android:textColor="@color/textSecondary"
+                android:textSize="13sp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:lineSpacingExtra="3dp"
+                android:text="2. 授权成功后状态变为绿色「已授权」"
+                android:textColor="@color/textSecondary"
+                android:textSize="13sp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:lineSpacingExtra="3dp"
+                android:text="3. 推荐: 点击「从应用列表选择」自动填入信息"
+                android:textColor="@color/textSecondary"
+                android:textSize="13sp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:lineSpacingExtra="3dp"
+                android:text="4. Deep Link（可选）: 填入后开启磁贴启动特定页面"
+                android:textColor="@color/textSecondary"
+                android:textSize="13sp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:lineSpacingExtra="3dp"
+                android:text="5. 保存后下拉通知栏 > 编辑快捷开关 > 添加"
+                android:textColor="@color/textSecondary"
+                android:textSize="13sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="20dp"
+                android:text="6. 点击磁贴即可一键开关无障碍权限"
+                android:textColor="@color/textSecondary"
+                android:textSize="13sp" />
+        </LinearLayout>
 
     </LinearLayout>
 </ScrollView>

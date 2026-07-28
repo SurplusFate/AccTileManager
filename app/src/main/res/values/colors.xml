@@ -1,4 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <color name="primary">#1976D2</color>
+    <color name="primaryDark">#1565C0</color>
+    <color name="accent">#FF6D00</color>
+    <color name="bgPage">#F5F5F5</color>
+    <color name="bgCard">#FFFFFF</color>
+    <color name="bgInput">#FAFAFA</color>
+    <color name="borderInput">#E0E0E0</color>
+    <color name="borderCard">#E8E8E8</color>
+    <color name="textPrimary">#212121</color>
+    <color name="textSecondary">#757575</color>
+    <color name="textHint">#BDBDBD</color>
+    <color name="statusGranted">#4CAF50</color>
+    <color name="statusDenied">#F44336</color>
+    <color name="statusUnavailable">#FF9800</color>
     <color name="ic_launcher_background">#4B3FE3</color>
 </resources>
