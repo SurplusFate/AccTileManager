@@ -34,6 +34,7 @@ public class AppPickerActivity extends Activity {
     public static final String EXTRA_PACKAGE_NAME = "package_name";
     public static final String EXTRA_SERVICE_COMPONENT = "service_component";
     public static final String EXTRA_LABEL = "label";
+    public static final String EXTRA_DEEP_LINK = "deep_link";
 
     private AppListAdapter adapter;
     private ListView listView;
@@ -121,21 +122,22 @@ public class AppPickerActivity extends Activity {
 
     private void onAppSelected(final AppInfoHelper.AppItem item) {
         // 检查该 app 是否有无障碍服务
-        List<AppInfoHelper.ServiceItem> services = AppInfoHelper.getAccessibilityServices(this, item.packageName);
+        final List<AppInfoHelper.ServiceItem> services = AppInfoHelper.getAccessibilityServices(this, item.packageName);
 
         if (services.isEmpty()) {
             // 没有无障碍服务，直接返回包名
             Toast.makeText(this,
                     item.appName + " 未检测到无障碍服务\n已自动填入包名",
                     Toast.LENGTH_SHORT).show();
-            returnResult(item.packageName, "", item.appName);
+            // 仍然检查 Deep Link
+            pickDeepLink(item, "", "");
             return;
         }
 
         if (services.size() == 1) {
             // 只有一个服务，直接选中
             Logger.d("AppPicker", "自动选择唯一服务: " + services.get(0).component);
-            returnResult(item.packageName, services.get(0).component, item.appName);
+            pickDeepLink(item, services.get(0).component, "");
             return;
         }
 
@@ -145,24 +147,74 @@ public class AppPickerActivity extends Activity {
             @Override
             public void onSelected(AppInfoHelper.ServiceItem service) {
                 Logger.d("AppPicker", "用户选择服务: " + service.component);
-                returnResult(item.packageName, service.component, item.appName);
+                pickDeepLink(item, service.component, "");
             }
 
             @Override
             public void onCancelled() {
                 // 用户取消服务选择，仍然返回包名（不带服务）
                 Logger.d("AppPicker", "用户取消服务选择，仅返回包名");
-                returnResult(item.packageName, "", item.appName);
+                pickDeepLink(item, "", "");
             }
         });
         dialog.show();
     }
 
-    private void returnResult(String packageName, String serviceComponent, String label) {
+    /** 选择 Deep Link（如果有的话），然后返回结果 */
+    private void pickDeepLink(final AppInfoHelper.AppItem item,
+                              final String serviceComponent,
+                              final String defaultDeepLink) {
+        // 后台线程读取 Deep Link
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                final List<AppInfoHelper.DeepLinkItem> links =
+                        AppInfoHelper.getDeepLinks(AppPickerActivity.this, item.packageName);
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (links.isEmpty()) {
+                            // 没有 Deep Link，直接返回
+                            returnResult(item.packageName, serviceComponent, item.appName, "");
+                            return;
+                        }
+
+                        if (links.size() == 1) {
+                            // 只有一个 Deep Link，直接返回
+                            Logger.d("AppPicker", "自动选择唯一 Deep Link: " + links.get(0).uri);
+                            returnResult(item.packageName, serviceComponent, item.appName, links.get(0).uri);
+                            return;
+                        }
+
+                        // 多个 Deep Link，弹窗选择
+                        DeepLinkPickerDialog dialog = new DeepLinkPickerDialog(
+                                AppPickerActivity.this, item, links);
+                        dialog.setListener(new DeepLinkPickerDialog.OnDeepLinkSelectedListener() {
+                            @Override
+                            public void onSelected(AppInfoHelper.DeepLinkItem link) {
+                                Logger.d("AppPicker", "用户选择 Deep Link: " + link.uri);
+                                returnResult(item.packageName, serviceComponent, item.appName, link.uri);
+                            }
+
+                            @Override
+                            public void onCancelled() {
+                                Logger.d("AppPicker", "用户跳过 Deep Link 选择");
+                                returnResult(item.packageName, serviceComponent, item.appName, "");
+                            }
+                        });
+                        dialog.show();
+                    }
+                });
+            }
+        }).start();
+    }
+
+    private void returnResult(String packageName, String serviceComponent, String label, String deepLink) {
         Intent data = new Intent();
         data.putExtra(EXTRA_PACKAGE_NAME, packageName);
         data.putExtra(EXTRA_SERVICE_COMPONENT, serviceComponent);
         data.putExtra(EXTRA_LABEL, label);
+        data.putExtra(EXTRA_DEEP_LINK, deepLink);
         setResult(RESULT_OK, data);
         finish();
     }

@@ -113,12 +113,14 @@ public class SettingsActivity extends Activity {
         EditText etApp = findViewById(getResId("et_app_" + slot));
         EditText etService = findViewById(getResId("et_service_" + slot));
         EditText etLabel = findViewById(getResId("et_label_" + slot));
+        EditText etDeepLink = findViewById(getResId("et_deeplink_" + slot));
         CheckBox cbLaunch = findViewById(getResId("cb_launch_" + slot));
         CheckBox cbStop = findViewById(getResId("cb_stop_" + slot));
 
         if (etApp != null) etApp.setText(prefs.getString(prefix + "app", ""));
         if (etService != null) etService.setText(prefs.getString(prefix + "service", ""));
         if (etLabel != null) etLabel.setText(prefs.getString(prefix + "label", ""));
+        if (etDeepLink != null) etDeepLink.setText(prefs.getString(prefix + "deeplink", ""));
         if (cbLaunch != null) cbLaunch.setChecked(prefs.getBoolean(prefix + "launch", true));
         if (cbStop != null) cbStop.setChecked(prefs.getBoolean(prefix + "stop", true));
     }
@@ -136,12 +138,14 @@ public class SettingsActivity extends Activity {
         EditText etApp = findViewById(getResId("et_app_" + slot));
         EditText etService = findViewById(getResId("et_service_" + slot));
         EditText etLabel = findViewById(getResId("et_label_" + slot));
+        EditText etDeepLink = findViewById(getResId("et_deeplink_" + slot));
         CheckBox cbLaunch = findViewById(getResId("cb_launch_" + slot));
         CheckBox cbStop = findViewById(getResId("cb_stop_" + slot));
 
         String app = etApp != null ? etApp.getText().toString().trim() : "";
         String service = etService != null ? etService.getText().toString().trim() : "";
         String label = etLabel != null ? etLabel.getText().toString().trim() : "";
+        String deepLink = etDeepLink != null ? etDeepLink.getText().toString().trim() : "";
         boolean launch = cbLaunch != null && cbLaunch.isChecked();
         boolean stop = cbStop != null && cbStop.isChecked();
 
@@ -157,11 +161,13 @@ public class SettingsActivity extends Activity {
         editor.putString(prefix + "app", app);
         editor.putString(prefix + "service", service);
         editor.putString(prefix + "label", label.isEmpty() ? "无障碍 " + (slot + 1) : label);
+        editor.putString(prefix + "deeplink", deepLink);
         editor.putBoolean(prefix + "launch", launch);
         editor.putBoolean(prefix + "stop", stop);
         editor.apply();
 
-        Logger.d("Settings", "saveSlot " + slot + ": app=" + app + " service=" + service + " label=" + label);
+        Logger.d("Settings", "saveSlot " + slot + ": app=" + app + " service=" + service
+                + " label=" + label + " deeplink=" + deepLink);
         Toast.makeText(this, "磁贴 " + (slot + 1) + " 已保存", Toast.LENGTH_SHORT).show();
     }
 
@@ -257,10 +263,12 @@ public class SettingsActivity extends Activity {
             String packageName = data.getStringExtra(AppPickerActivity.EXTRA_PACKAGE_NAME);
             String serviceComponent = data.getStringExtra(AppPickerActivity.EXTRA_SERVICE_COMPONENT);
             String label = data.getStringExtra(AppPickerActivity.EXTRA_LABEL);
+            String deepLink = data.getStringExtra(AppPickerActivity.EXTRA_DEEP_LINK);
             int slot = data.getIntExtra(AppPickerActivity.EXTRA_SLOT_INDEX, currentEditingSlot);
 
             Logger.d("Settings", "应用选择结果: slot=" + slot
-                    + " pkg=" + packageName + " service=" + serviceComponent + " label=" + label);
+                    + " pkg=" + packageName + " service=" + serviceComponent
+                    + " label=" + label + " deeplink=" + deepLink);
 
             if (slot < 0 || slot >= MAX_SLOTS) slot = currentEditingSlot;
             if (slot < 0) return;
@@ -269,6 +277,7 @@ public class SettingsActivity extends Activity {
             EditText etApp = findViewById(getResId("et_app_" + slot));
             EditText etService = findViewById(getResId("et_service_" + slot));
             EditText etLabel = findViewById(getResId("et_label_" + slot));
+            EditText etDeepLink = findViewById(getResId("et_deeplink_" + slot));
 
             if (etApp != null && packageName != null) {
                 etApp.setText(packageName);
@@ -282,12 +291,18 @@ public class SettingsActivity extends Activity {
                     etLabel.setText(label);
                 }
             }
+            if (etDeepLink != null && deepLink != null && !deepLink.isEmpty()) {
+                etDeepLink.setText(deepLink);
+            }
 
             String msg = "已填入: " + (label != null ? label : packageName);
             if (serviceComponent != null && !serviceComponent.isEmpty()) {
                 msg += "\n服务: " + serviceComponent;
             } else {
                 msg += "\n(未检测到无障碍服务，请手动填写)";
+            }
+            if (deepLink != null && !deepLink.isEmpty()) {
+                msg += "\nDeep Link: " + deepLink;
             }
             Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
 

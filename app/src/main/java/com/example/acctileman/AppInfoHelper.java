@@ -8,6 +8,7 @@ import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.content.pm.ServiceInfo;
 import android.graphics.drawable.Drawable;
+import android.net.Uri;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -44,6 +45,22 @@ public class AppInfoHelper {
         public String description;
         /** 是否已启用 */
         public boolean enabled;
+    }
+
+    /**
+     * 表示一个 Deep Link（URI/Intent）。
+     */
+    public static class DeepLinkItem {
+        /** 完整 URI，如 taobao://item.taobao.com/item.html?id=123 */
+        public String uri;
+        /** scheme，如 taobao */
+        public String scheme;
+        /** host，如 item.taobao.com */
+        public String host;
+        /** 来源 Activity 名称 */
+        public String activityName;
+        /** 显示用的简短描述 */
+        public String label;
     }
 
     /** 获取所有已安装的第三方应用（排除系统应用），按名称排序 */
@@ -171,6 +188,123 @@ public class AppInfoHelper {
             }
         } catch (Throwable ignored) {}
         return false;
+    }
+
+    /**
+     * 获取指定 APP 声明的所有 Deep Link（URI scheme）。
+     * 通过 dumpsys package 命令解析，能获取到 AndroidManifest 中声明的所有 scheme。
+     */
+    public static List<DeepLinkItem> getDeepLinks(Context ctx, String packageName) {
+        Logger.d(TAG, "getDeepLinks: " + packageName);
+        List<DeepLinkItem> result = new ArrayList<>();
+
+        // 方法1: 通过 PackageManager.queryIntentActivities 查询 VIEW intent
+        try {
+            Intent viewIntent = new Intent(Intent.ACTION_VIEW);
+            viewIntent.setPackage(packageName);
+            viewIntent.addCategory(Intent.CATEGORY_BROWSABLE);
+            List<ResolveInfo> activities = ctx.getPackageManager().queryIntentActivities(
+                    viewIntent, PackageManager.GET_RESOLVED_FILTER);
+
+            for (ResolveInfo ri : activities) {
+                if (ri.filter == null) continue;
+                // 遍历所有 scheme
+                for (int i = 0; i < ri.filter.countDataSchemes(); i++) {
+                    String scheme = ri.filter.getDataScheme(i);
+                    if (scheme == null) continue;
+
+                    DeepLinkItem item = new DeepLinkItem();
+                    item.scheme = scheme;
+                    // 构建 URI: scheme://
+                    item.uri = scheme + "://";
+                    item.activityName = ri.activityInfo != null ? ri.activityInfo.name : "";
+                    item.label = scheme + "://" + (ri.loadLabel(ctx.getPackageManager()).toString());
+                    addDeepLinkIfNotExists(result, item);
+                }
+                // 遍历所有 authority (host)
+                for (int i = 0; i < ri.filter.countDataAuthorities(); i++) {
+                    String host = ri.filter.getDataAuthority(i).getHost();
+                    if (host == null) continue;
+                    for (int j = 0; j < ri.filter.countDataSchemes(); j++) {
+                        String scheme = ri.filter.getDataScheme(j);
+                        if (scheme == null) continue;
+
+                        DeepLinkItem item = new DeepLinkItem();
+                        item.scheme = scheme;
+                        item.host = host;
+                        item.uri = scheme + "://" + host;
+                        item.activityName = ri.activityInfo != null ? ri.activityInfo.name : "";
+                        item.label = scheme + "://" + host;
+                        addDeepLinkIfNotExists(result, item);
+                    }
+                }
+            }
+        } catch (Throwable t) {
+            Logger.e(TAG, "getDeepLinks: queryIntentActivities 失败", t);
+        }
+
+        // 方法2: 通过 dumpsys package 命令获取更完整的 scheme 列表
+        try {
+            java.io.Process p = Runtime.getRuntime().exec(new String[]{
+                    "dumpsys", "package", packageName
+            });
+            java.io.BufferedReader reader = new java.io.BufferedReader(
+                    new java.io.InputStreamReader(p.getInputStream()));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                // 匹配 "scheme=xxx" 或 "Scheme{xxx}"
+                if (line.contains("scheme=") || line.contains("Scheme{")) {
+                    String scheme = extractScheme(line);
+                    if (scheme != null && !scheme.isEmpty()) {
+                        DeepLinkItem item = new DeepLinkItem();
+                        item.scheme = scheme;
+                        item.uri = scheme + "://";
+                        item.label = scheme + "://";
+                        addDeepLinkIfNotExists(result, item);
+                    }
+                }
+            }
+            p.waitFor();
+        } catch (Throwable t) {
+            Logger.e(TAG, "getDeepLinks: dumpsys 失败", t);
+        }
+
+        Logger.d(TAG, "getDeepLinks: " + packageName + " 找到 " + result.size() + " 个 Deep Link");
+        return result;
+    }
+
+    private static void addDeepLinkIfNotExists(List<DeepLinkItem> list, DeepLinkItem item) {
+        for (DeepLinkItem existing : list) {
+            if (existing.uri.equals(item.uri)) {
+                return;
+            }
+        }
+        list.add(item);
+    }
+
+    private static String extractScheme(String line) {
+        // 匹配 scheme=xxx
+        int idx = line.indexOf("scheme=");
+        if (idx >= 0) {
+            String after = line.substring(idx + 7).trim();
+            // 取第一个空格前的部分
+            int space = after.indexOf(' ');
+            if (space > 0) after = after.substring(0, space);
+            after = after.replaceAll("[^a-zA-Z0-9._-]", "");
+            return after;
+        }
+        // 匹配 Scheme{xxx}
+        idx = line.indexOf("Scheme{");
+        if (idx >= 0) {
+            int end = line.indexOf("}", idx);
+            if (end > idx) {
+                String scheme = line.substring(idx + 7, end).trim();
+                scheme = scheme.replaceAll("[^a-zA-Z0-9._-]", "");
+                return scheme;
+            }
+        }
+        return null;
     }
 
     private static boolean isSystemApp(ApplicationInfo ai) {

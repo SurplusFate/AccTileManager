@@ -157,6 +157,24 @@ public class ShellHelper {
         }
     }
 
+    /** 通过 Deep Link URI 启动 app 的特定功能页面 */
+    public static void launchDeepLink(String uri) {
+        Logger.d(TAG, "launchDeepLink: " + uri);
+        if (appContext == null) return;
+        if (uri == null || uri.isEmpty()) {
+            Logger.w(TAG, "launchDeepLink: URI 为空");
+            return;
+        }
+        try {
+            Intent intent = new Intent(Intent.ACTION_VIEW, android.net.Uri.parse(uri));
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            appContext.startActivity(intent);
+            Logger.d(TAG, "launchDeepLink: 已启动 " + uri);
+        } catch (Throwable t) {
+            Logger.e(TAG, "launchDeepLink 失败: " + uri, t);
+        }
+    }
+
     /**
      * 强制停止 app（需要特权，通过 Shizuku 执行）。
      * 如果无特权则静默跳过。

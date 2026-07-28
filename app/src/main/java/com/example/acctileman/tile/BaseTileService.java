@@ -98,8 +98,14 @@ public abstract class BaseTileService extends TileService {
         msg.append("\n服务: ").append(shortServiceName(config.accessibilityService));
 
         if (config.launchApp && config.appPackage != null && !config.appPackage.isEmpty()) {
-            ShellHelper.launchApp(config.appPackage);
-            msg.append("\n已启动应用: ").append(config.appPackage);
+            // 优先使用 Deep Link 启动特定功能页面
+            if (config.deepLink != null && !config.deepLink.isEmpty()) {
+                ShellHelper.launchDeepLink(config.deepLink);
+                msg.append("\n已通过 Deep Link 启动: ").append(config.deepLink);
+            } else {
+                ShellHelper.launchApp(config.appPackage);
+                msg.append("\n已启动应用: ").append(config.appPackage);
+            }
         }
 
         setSlotState(true);
@@ -213,24 +219,27 @@ public abstract class BaseTileService extends TileService {
         String app = prefs.getString(prefix + "app", "");
         String service = prefs.getString(prefix + "service", "");
         String label = prefs.getString(prefix + "label", "");
+        String deepLink = prefs.getString(prefix + "deeplink", "");
         boolean launch = prefs.getBoolean(prefix + "launch", true);
         boolean stop = prefs.getBoolean(prefix + "stop", true);
 
         if (service.isEmpty()) return null;
-        return new SlotConfig(app, service, label, launch, stop);
+        return new SlotConfig(app, service, label, deepLink, launch, stop);
     }
 
     static class SlotConfig {
         String appPackage;
         String accessibilityService;
         String label;
+        String deepLink;
         boolean launchApp;
         boolean stopApp;
 
-        SlotConfig(String app, String service, String label, boolean launch, boolean stop) {
+        SlotConfig(String app, String service, String label, String deepLink, boolean launch, boolean stop) {
             this.appPackage = app;
             this.accessibilityService = service;
             this.label = label;
+            this.deepLink = deepLink;
             this.launchApp = launch;
             this.stopApp = stop;
         }
