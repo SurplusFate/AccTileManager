@@ -68,6 +68,12 @@ public abstract class BaseTileService extends TileService {
         SlotConfig config = getSlotConfig();
         if (config == null || config.isEmpty()) {
             Logger.w("Tile", "Slot " + getSlotIndex() + " 未配置，打开设置");
+            try {
+                android.widget.Toast.makeText(
+                        App.getContext(),
+                        "磁贴未配置，打开 App 进行设置",
+                        android.widget.Toast.LENGTH_SHORT).show();
+            } catch (Throwable ignored) {}
             startActivityAndCollapse(getPackageManager().getLaunchIntentForPackage(getPackageName()));
             return;
         }
@@ -81,17 +87,28 @@ public abstract class BaseTileService extends TileService {
             try {
                 android.widget.Toast.makeText(
                         App.getContext(),
-                        "启用失败，请检查权限和服务名",
+                        "❌ 启用失败\n请检查权限和服务名",
                         android.widget.Toast.LENGTH_SHORT).show();
             } catch (Throwable ignored) {}
             return;
         }
 
+        StringBuilder msg = new StringBuilder();
+        msg.append("✅ 已启用: ").append(config.label);
+        msg.append("\n服务: ").append(shortServiceName(config.accessibilityService));
+
         if (config.launchApp && config.appPackage != null && !config.appPackage.isEmpty()) {
             ShellHelper.launchApp(config.appPackage);
+            msg.append("\n已启动应用: ").append(config.appPackage);
         }
 
         setSlotState(true);
+
+        try {
+            android.widget.Toast.makeText(
+                    App.getContext(), msg.toString(),
+                    android.widget.Toast.LENGTH_LONG).show();
+        } catch (Throwable ignored) {}
     }
 
     private void disable() {
@@ -107,18 +124,29 @@ public abstract class BaseTileService extends TileService {
             try {
                 android.widget.Toast.makeText(
                         App.getContext(),
-                        "禁用失败，请检查权限",
+                        "❌ 禁用失败\n请检查权限",
                         android.widget.Toast.LENGTH_SHORT).show();
             } catch (Throwable ignored) {}
             return;
         }
 
+        StringBuilder msg = new StringBuilder();
+        msg.append("⛔ 已禁用: ").append(config.label);
+        msg.append("\n服务: ").append(shortServiceName(config.accessibilityService));
+
         if (config.stopApp && config.appPackage != null && !config.appPackage.isEmpty()) {
             ShellHelper.forceStopApp(config.appPackage);
             ShellHelper.clearNotifications(config.appPackage);
+            msg.append("\n已停止应用并清除通知: ").append(config.appPackage);
         }
 
         setSlotState(false);
+
+        try {
+            android.widget.Toast.makeText(
+                    App.getContext(), msg.toString(),
+                    android.widget.Toast.LENGTH_LONG).show();
+        } catch (Throwable ignored) {}
     }
 
     private void updateTileUI() {
@@ -144,6 +172,16 @@ public abstract class BaseTileService extends TileService {
         tile.setIcon(Icon.createWithResource(this,
                 active ? R.drawable.ic_tile_on : R.drawable.ic_tile_off));
         tile.updateTile();
+    }
+
+    /** 将完整服务组件名缩短显示，如 com.a.b/.X.Y -> .X.Y */
+    private String shortServiceName(String component) {
+        if (component == null) return "";
+        int slash = component.indexOf('/');
+        if (slash >= 0 && slash + 1 < component.length()) {
+            return component.substring(slash + 1);
+        }
+        return component;
     }
 
     /** 检查服务是否实际在系统的已启用无障碍服务列表中 */
