@@ -1,6 +1,7 @@
 package com.example.acctileman;
 
 import android.app.Activity;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.widget.Button;
@@ -18,6 +19,9 @@ public class SettingsActivity extends Activity {
 
     private static final String PREFS = "acc_tile_prefs";
     private static final int MAX_SLOTS = 3;
+    private static final int REQ_PICK_APP = 1000;
+
+    private int currentEditingSlot = -1; // 当前正在选择应用的 slot
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -39,6 +43,19 @@ public class SettingsActivity extends Activity {
             if (btn != null) {
                 btn.setOnClickListener(new android.view.View.OnClickListener() {
                     @Override public void onClick(android.view.View v) { self.saveSlot(slot); }
+                });
+            }
+            // 应用选择按钮
+            Button btnPick = findViewById(getResId("btn_pick_app_" + slot));
+            if (btnPick != null) {
+                btnPick.setOnClickListener(new android.view.View.OnClickListener() {
+                    @Override public void onClick(android.view.View v) {
+                        Logger.d("Settings", "点击选择应用: slot=" + slot);
+                        currentEditingSlot = slot;
+                        Intent intent = new Intent(self, AppPickerActivity.class);
+                        intent.putExtra(AppPickerActivity.EXTRA_SLOT_INDEX, slot);
+                        startActivityForResult(intent, REQ_PICK_APP);
+                    }
                 });
             }
         }
@@ -229,5 +246,52 @@ public class SettingsActivity extends Activity {
         Logger.d("Settings", "=== SettingsActivity onResume ===");
         // 用户可能从 Shizuku 返回，刷新权限状态
         updatePermissionStatus();
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        Logger.d("Settings", "onActivityResult: req=" + requestCode + " result=" + resultCode);
+
+        if (requestCode == REQ_PICK_APP && resultCode == RESULT_OK && data != null) {
+            String packageName = data.getStringExtra(AppPickerActivity.EXTRA_PACKAGE_NAME);
+            String serviceComponent = data.getStringExtra(AppPickerActivity.EXTRA_SERVICE_COMPONENT);
+            String label = data.getStringExtra(AppPickerActivity.EXTRA_LABEL);
+            int slot = data.getIntExtra(AppPickerActivity.EXTRA_SLOT_INDEX, currentEditingSlot);
+
+            Logger.d("Settings", "应用选择结果: slot=" + slot
+                    + " pkg=" + packageName + " service=" + serviceComponent + " label=" + label);
+
+            if (slot < 0 || slot >= MAX_SLOTS) slot = currentEditingSlot;
+            if (slot < 0) return;
+
+            // 自动填入字段
+            EditText etApp = findViewById(getResId("et_app_" + slot));
+            EditText etService = findViewById(getResId("et_service_" + slot));
+            EditText etLabel = findViewById(getResId("et_label_" + slot));
+
+            if (etApp != null && packageName != null) {
+                etApp.setText(packageName);
+            }
+            if (etService != null && serviceComponent != null && !serviceComponent.isEmpty()) {
+                etService.setText(serviceComponent);
+            }
+            if (etLabel != null && label != null && !label.isEmpty()) {
+                // 仅在标签为空时自动填入，避免覆盖用户已设置的标签
+                if (etLabel.getText().toString().trim().isEmpty()) {
+                    etLabel.setText(label);
+                }
+            }
+
+            String msg = "已填入: " + (label != null ? label : packageName);
+            if (serviceComponent != null && !serviceComponent.isEmpty()) {
+                msg += "\n服务: " + serviceComponent;
+            } else {
+                msg += "\n(未检测到无障碍服务，请手动填写)";
+            }
+            Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
+
+            currentEditingSlot = -1;
+        }
     }
 }
