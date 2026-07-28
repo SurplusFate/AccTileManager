@@ -245,7 +245,7 @@ public class AppInfoHelper {
 
         // 方法2: 通过 dumpsys package 命令获取更完整的 scheme 列表
         try {
-            java.io.Process p = Runtime.getRuntime().exec(new String[]{
+            Process p = Runtime.getRuntime().exec(new String[]{
                     "dumpsys", "package", packageName
             });
             java.io.BufferedReader reader = new java.io.BufferedReader(
