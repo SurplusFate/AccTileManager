@@ -7,6 +7,7 @@ import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.content.pm.ServiceInfo;
+import android.content.res.XmlResourceParser;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
 
@@ -192,108 +193,72 @@ public class AppInfoHelper {
 
     /**
      * 获取指定 APP 声明的所有 Deep Link（URI scheme）。
-     * 通过 PackageManager 标准 API 查询，不需要特权。
+     * 直接解析 APK 的 AndroidManifest.xml，提取所有 <data android:scheme="..."/> 声明。
+     * 不需要特权，不依赖 intent 匹配。
      */
     public static List<DeepLinkItem> getDeepLinks(Context ctx, String packageName) {
         Logger.d(TAG, "getDeepLinks: " + packageName);
         List<DeepLinkItem> result = new ArrayList<>();
         PackageManager pm = ctx.getPackageManager();
 
-        // 方法1: queryIntentActivities 查询 VIEW intent（不带 category 限制）
         try {
-            Intent viewIntent = new Intent(Intent.ACTION_VIEW);
-            viewIntent.setPackage(packageName);
-            List<ResolveInfo> activities = pm.queryIntentActivities(
-                    viewIntent, PackageManager.GET_RESOLVED_FILTER);
+            // 获取目标 APP 的资源，通过 XmlResourceParser 解析 AndroidManifest.xml
+            android.content.res.Resources res = pm.getResourcesForApplication(packageName);
+            XmlResourceParser parser = res.getAssets().openXmlResourceParser("AndroidManifest.xml");
 
-            for (ResolveInfo ri : activities) {
-                if (ri.filter == null) continue;
-                // 遍历所有 scheme
-                for (int i = 0; i < ri.filter.countDataSchemes(); i++) {
-                    String scheme = ri.filter.getDataScheme(i);
-                    if (scheme == null) continue;
-                    // 排除常见的非 deep link scheme
-                    if (scheme.equals("http") || scheme.equals("https")
-                            || scheme.equals("content") || scheme.equals("file")
-                            || scheme.equals("package")) {
-                        continue;
-                    }
+            String androidNs = "http://schemas.android.com/apk/res/android";
+            boolean inIntentFilter = false;
+            boolean hasViewAction = false;
+            String currentActivity = "";
 
-                    DeepLinkItem item = new DeepLinkItem();
-                    item.scheme = scheme;
-                    item.uri = scheme + "://";
-                    item.activityName = ri.activityInfo != null ? ri.activityInfo.name : "";
-                    item.label = scheme + "://";
-                    addDeepLinkIfNotExists(result, item);
-                }
-                // 遍历所有 authority (host)，构建更完整的 URI
-                for (int i = 0; i < ri.filter.countDataAuthorities(); i++) {
-                    String host = ri.filter.getDataAuthority(i).getHost();
-                    if (host == null) continue;
-                    for (int j = 0; j < ri.filter.countDataSchemes(); j++) {
-                        String scheme = ri.filter.getDataScheme(j);
-                        if (scheme == null) continue;
-                        if (scheme.equals("http") || scheme.equals("https")
-                                || scheme.equals("content") || scheme.equals("file")
-                                || scheme.equals("package")) {
-                            continue;
+            int eventType = parser.getEventType();
+            while (eventType != XmlResourceParser.END_DOCUMENT) {
+                if (eventType == XmlResourceParser.START_TAG) {
+                    String tag = parser.getName();
+
+                    if ("activity".equals(tag) || "activity-alias".equals(tag)) {
+                        currentActivity = parser.getAttributeValue(androidNs, "name");
+                    } else if ("intent-filter".equals(tag)) {
+                        inIntentFilter = true;
+                        hasViewAction = false;
+                    } else if (inIntentFilter && "action".equals(tag)) {
+                        String actionName = parser.getAttributeValue(androidNs, "name");
+                        if ("android.intent.action.VIEW".equals(actionName)) {
+                            hasViewAction = true;
                         }
-
-                        DeepLinkItem item = new DeepLinkItem();
-                        item.scheme = scheme;
-                        item.host = host;
-                        item.uri = scheme + "://" + host;
-                        item.activityName = ri.activityInfo != null ? ri.activityInfo.name : "";
-                        item.label = scheme + "://" + host;
-                        addDeepLinkIfNotExists(result, item);
-                    }
-                }
-            }
-        } catch (Throwable t) {
-            Logger.e(TAG, "getDeepLinks: queryIntentActivities 失败", t);
-        }
-
-        // 方法2: 日志记录已通过方法1获取的结果
-        Logger.d(TAG, "getDeepLinks: 方法1(queryIntentActivities) 获取到 " + result.size() + " 个");
-
-        // 方法3: 查询带 CATEGORY_BROWSABLE 的（补充 http/https 类的链接）
-        try {
-            Intent browsableIntent = new Intent(Intent.ACTION_VIEW);
-            browsableIntent.setPackage(packageName);
-            browsableIntent.addCategory(Intent.CATEGORY_BROWSABLE);
-            List<ResolveInfo> browsableActivities = pm.queryIntentActivities(
-                    browsableIntent, PackageManager.GET_RESOLVED_FILTER);
-
-            for (ResolveInfo ri : browsableActivities) {
-                if (ri.filter == null) continue;
-                for (int i = 0; i < ri.filter.countDataSchemes(); i++) {
-                    String scheme = ri.filter.getDataScheme(i);
-                    if (scheme == null) continue;
-                    // 这里只补充 http/https
-                    if (!scheme.equals("http") && !scheme.equals("https")) {
-                        continue;
-                    }
-                    // 获取 host
-                    String host = "";
-                    for (int j = 0; j < ri.filter.countDataAuthorities(); j++) {
-                        String h = ri.filter.getDataAuthority(j).getHost();
-                        if (h != null && !h.isEmpty()) {
-                            host = h;
-                            break;
+                    } else if (inIntentFilter && hasViewAction && "data".equals(tag)) {
+                        String scheme = parser.getAttributeValue(androidNs, "scheme");
+                        String host = parser.getAttributeValue(androidNs, "host");
+                        if (scheme != null && !scheme.isEmpty()) {
+                            // 排除系统内置 scheme
+                            if (!scheme.equals("content") && !scheme.equals("file")
+                                    && !scheme.equals("package")) {
+                                DeepLinkItem item = new DeepLinkItem();
+                                item.scheme = scheme;
+                                item.host = host != null ? host : "";
+                                item.uri = (host != null && !host.isEmpty())
+                                        ? scheme + "://" + host
+                                        : scheme + "://";
+                                item.activityName = currentActivity != null ? currentActivity : "";
+                                item.label = item.uri;
+                                addDeepLinkIfNotExists(result, item);
+                                Logger.d(TAG, "getDeepLinks: 发现 scheme=" + scheme
+                                        + " host=" + host + " activity=" + currentActivity);
+                            }
                         }
                     }
-
-                    DeepLinkItem item = new DeepLinkItem();
-                    item.scheme = scheme;
-                    item.host = host;
-                    item.uri = host.isEmpty() ? scheme + "://" : scheme + "://" + host;
-                    item.activityName = ri.activityInfo != null ? ri.activityInfo.name : "";
-                    item.label = item.uri;
-                    addDeepLinkIfNotExists(result, item);
+                } else if (eventType == XmlResourceParser.END_TAG) {
+                    String tag = parser.getName();
+                    if ("intent-filter".equals(tag)) {
+                        inIntentFilter = false;
+                        hasViewAction = false;
+                    }
                 }
+                eventType = parser.next();
             }
+            parser.close();
         } catch (Throwable t) {
-            Logger.e(TAG, "getDeepLinks: 查询 BROWSABLE 失败", t);
+            Logger.e(TAG, "getDeepLinks: 解析 AndroidManifest.xml 失败", t);
         }
 
         Logger.d(TAG, "getDeepLinks: " + packageName + " 找到 " + result.size() + " 个 Deep Link");
