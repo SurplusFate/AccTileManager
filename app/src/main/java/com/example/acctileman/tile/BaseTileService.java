@@ -7,6 +7,7 @@ import android.service.quicksettings.TileService;
 
 import com.example.acctileman.App;
 import com.example.acctileman.Logger;
+import com.example.acctileman.NotifHelper;
 import com.example.acctileman.R;
 import com.example.acctileman.ShellHelper;
 import com.example.acctileman.ShizukuHelper;
