@@ -13,7 +13,6 @@ import android.os.Build;
 public class NotifHelper {
 
     private static final String CHANNEL_ID = "tile_feedback";
-    private static final String CHANNEL_NAME = "磁贴操作提示";
     private static final int NOTIF_ID = 9001;
 
     private static boolean channelCreated = false;
@@ -32,8 +31,8 @@ public class NotifHelper {
             if (!channelCreated) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     NotificationChannel channel = new NotificationChannel(
-                            CHANNEL_ID, CHANNEL_NAME,
-                            NotificationManager.IMPORTANCE_LOW); // 低优先级，不发声
+                            CHANNEL_ID, "磁贴操作提示",
+                            NotificationManager.IMPORTANCE_LOW);
                     channel.setDescription("磁贴操作反馈");
                     channel.setShowBadge(false);
                     nm.createNotificationChannel(channel);
@@ -51,9 +50,7 @@ public class NotifHelper {
             builder.setSmallIcon(android.R.drawable.ic_dialog_info);
             builder.setContentTitle(title);
             builder.setContentText(message);
-            builder.setStyle(new Notification.BigTextStyle().bigText(message));
             builder.setAutoCancel(true);
-            builder.setPriority(Notification.PRIORITY_LOW);
             builder.setOngoing(false);
 
             Notification notif = builder.build();
