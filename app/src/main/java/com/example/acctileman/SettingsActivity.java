@@ -64,6 +64,9 @@ public class SettingsActivity extends Activity {
         // Status
         updatePermissionStatus();
 
+        // 请求通知权限（Android 13+ 需要）
+        requestNotificationPermission();
+
         // Current services button
         Button btnShowServices = findViewById(R.id.btn_show_services);
         if (btnShowServices != null) {
@@ -318,6 +321,24 @@ public class SettingsActivity extends Activity {
             Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
 
             currentEditingSlot = -1;
+        }
+    }
+
+    /** 请求通知权限（Android 13+ 需要） */
+    private void requestNotificationPermission() {
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            try {
+                String perm = "android.permission.POST_NOTIFICATIONS";
+                int granted = checkSelfPermission(perm);
+                if (granted != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                    Logger.d("Settings", "请求通知权限");
+                    requestPermissions(new String[]{perm}, 200);
+                } else {
+                    Logger.d("Settings", "通知权限已授予");
+                }
+            } catch (Throwable t) {
+                Logger.e("Settings", "请求通知权限失败", t);
+            }
         }
     }
 }

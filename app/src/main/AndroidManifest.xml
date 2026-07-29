@@ -4,6 +4,8 @@
 
     <!-- 允许修改安全设置（无障碍服务列表等），需通过 adb 或 Shizuku 授予 -->
     <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" />
+    <!-- 允许显示通知提示（Android 13+ 需要） -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:name=".App"

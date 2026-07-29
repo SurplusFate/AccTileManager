@@ -167,16 +167,35 @@ public abstract class BaseTileService extends TileService {
         return component;
     }
 
-    /** 统一的 Toast 显示方法，使用 TileService 自己的 Context */
+    /** 统一的提示方法：同时尝试 Toast 和 Notification，确保用户能看到 */
     private void showToast(String message) {
+        Logger.d("Tile", "showToast: " + message.replace("\n", " | "));
+
+        // 方法1: 尝试 Toast（部分设备/版本可能不显示）
         try {
             android.widget.Toast.makeText(
                     this,
                     message,
                     android.widget.Toast.LENGTH_LONG).show();
-            Logger.d("Tile", "showToast: " + message.replace("\n", " | "));
         } catch (Throwable t) {
-            Logger.e("Tile", "showToast 失败", t);
+            Logger.e("Tile", "Toast 失败", t);
+        }
+
+        // 方法2: 用 Notification 兜底（Android 12+ 后台 Toast 被限制）
+        try {
+            String title;
+            if (message.startsWith("✅")) {
+                title = "已启用";
+            } else if (message.startsWith("⛔")) {
+                title = "已禁用";
+            } else if (message.startsWith("❌")) {
+                title = "操作失败";
+            } else {
+                title = "磁贴提示";
+            }
+            NotifHelper.showFeedback(this, title, message);
+        } catch (Throwable t) {
+            Logger.e("Tile", "Notification 失败", t);
         }
     }
 
