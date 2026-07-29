@@ -45,13 +45,7 @@ public abstract class BaseTileService extends TileService {
 
         if (!ShizukuHelper.checkSelfPermission()) {
             Logger.w("Tile", "WRITE_SECURE_SETTINGS 权限未授予，忽略操作");
-            // 通过 statusBar 提示用户去设置页授权
-            try {
-                android.widget.Toast.makeText(
-                        App.getContext(),
-                        "无权限！请先打开 App 点击「授予权限」",
-                        android.widget.Toast.LENGTH_SHORT).show();
-            } catch (Throwable ignored) {}
+            showToast("无权限！请先打开 App 点击「授予权限」");
             return;
         }
 
@@ -68,12 +62,7 @@ public abstract class BaseTileService extends TileService {
         SlotConfig config = getSlotConfig();
         if (config == null || config.isEmpty()) {
             Logger.w("Tile", "Slot " + getSlotIndex() + " 未配置，打开设置");
-            try {
-                android.widget.Toast.makeText(
-                        App.getContext(),
-                        "磁贴未配置，打开 App 进行设置",
-                        android.widget.Toast.LENGTH_SHORT).show();
-            } catch (Throwable ignored) {}
+            showToast("磁贴未配置，打开 App 进行设置");
             startActivityAndCollapse(getPackageManager().getLaunchIntentForPackage(getPackageName()));
             return;
         }
@@ -84,12 +73,7 @@ public abstract class BaseTileService extends TileService {
 
         if (!ok) {
             Logger.e("Tile", "启用无障碍服务失败，不继续启动App");
-            try {
-                android.widget.Toast.makeText(
-                        App.getContext(),
-                        "❌ 启用失败\n请检查权限和服务名",
-                        android.widget.Toast.LENGTH_SHORT).show();
-            } catch (Throwable ignored) {}
+            showToast("❌ 启用失败\n请检查权限和服务名");
             return;
         }
 
@@ -97,24 +81,27 @@ public abstract class BaseTileService extends TileService {
         msg.append("✅ 已启用: ").append(config.label);
         msg.append("\n服务: ").append(shortServiceName(config.accessibilityService));
 
+        // 先显示 Toast，让用户看到提示
+        showToast(msg.toString());
+
+        // 延迟启动 App，确保 Toast 先显示
         if (config.launchApp && config.appPackage != null && !config.appPackage.isEmpty()) {
-            // 优先使用 Deep Link 启动特定功能页面
-            if (config.deepLink != null && !config.deepLink.isEmpty()) {
-                ShellHelper.launchDeepLink(config.deepLink);
-                msg.append("\n已通过 Deep Link 启动: ").append(config.deepLink);
-            } else {
-                ShellHelper.launchApp(config.appPackage);
-                msg.append("\n已启动应用: ").append(config.appPackage);
-            }
+            final SlotConfig finalConfig = config;
+            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    if (finalConfig.deepLink != null && !finalConfig.deepLink.isEmpty()) {
+                        ShellHelper.launchDeepLink(finalConfig.deepLink);
+                        Logger.d("Tile", "已通过 Deep Link 启动: " + finalConfig.deepLink);
+                    } else {
+                        ShellHelper.launchApp(finalConfig.appPackage);
+                        Logger.d("Tile", "已启动应用: " + finalConfig.appPackage);
+                    }
+                }
+            }, 300); // 延迟 300ms，让 Toast 先显示
         }
 
         setSlotState(true);
-
-        try {
-            android.widget.Toast.makeText(
-                    App.getContext(), msg.toString(),
-                    android.widget.Toast.LENGTH_LONG).show();
-        } catch (Throwable ignored) {}
     }
 
     private void disable() {
@@ -127,12 +114,7 @@ public abstract class BaseTileService extends TileService {
 
         if (!ok) {
             Logger.e("Tile", "禁用无障碍服务失败");
-            try {
-                android.widget.Toast.makeText(
-                        App.getContext(),
-                        "❌ 禁用失败\n请检查权限",
-                        android.widget.Toast.LENGTH_SHORT).show();
-            } catch (Throwable ignored) {}
+            showToast("❌ 禁用失败\n请检查权限");
             return;
         }
 
@@ -143,16 +125,11 @@ public abstract class BaseTileService extends TileService {
         if (config.stopApp && config.appPackage != null && !config.appPackage.isEmpty()) {
             ShellHelper.forceStopApp(config.appPackage);
             ShellHelper.clearNotifications(config.appPackage);
-            msg.append("\n已停止应用并清除通知: ").append(config.appPackage);
+            msg.append("\n已停止应用并清除通知");
         }
 
         setSlotState(false);
-
-        try {
-            android.widget.Toast.makeText(
-                    App.getContext(), msg.toString(),
-                    android.widget.Toast.LENGTH_LONG).show();
-        } catch (Throwable ignored) {}
+        showToast(msg.toString());
     }
 
     private void updateTileUI() {
@@ -188,6 +165,19 @@ public abstract class BaseTileService extends TileService {
             return component.substring(slash + 1);
         }
         return component;
+    }
+
+    /** 统一的 Toast 显示方法，使用 TileService 自己的 Context */
+    private void showToast(String message) {
+        try {
+            android.widget.Toast.makeText(
+                    this,
+                    message,
+                    android.widget.Toast.LENGTH_LONG).show();
+            Logger.d("Tile", "showToast: " + message.replace("\n", " | "));
+        } catch (Throwable t) {
+            Logger.e("Tile", "showToast 失败", t);
+        }
     }
 
     /** 检查服务是否实际在系统的已启用无障碍服务列表中 */
